@@ -1,0 +1,39 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries (built with 'go test -c')
+*.test
+
+# Output of the go coverage tool and profiling
+*.out
+*.prof
+*.coverprofile
+
+# Dependency directories
+# Note: Only uncomment if you explicitly use 'go mod vendor' and don't want to commit it.
+# vendor/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Environment variables (sensitive data)
+.env
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
