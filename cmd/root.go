@@ -159,7 +159,7 @@ func searchManager(query Query) {
 }
 
 func listFiles() []string {
-	return []string{"lib/command_data.txt"}
+	return []string{"internal/data.txt"}
 }
 
 func scanFile(filepath string, query Query, ch chan<- Result, wg *sync.WaitGroup) {
