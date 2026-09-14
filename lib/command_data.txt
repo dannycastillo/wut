@@ -1,0 +1,424 @@
+[tmux]
+
+# Start named session
+tmux new -s SESSION_NAME
+
+# List active sessions
+tmux ls
+
+# Attach to specific session
+tmux attach -t SESSION_NAME
+
+# Kill specific session
+tmux kill-session -t SESSION_NAME
+
+# Kill ALL sessions
+tmux kill-server
+
+# Rename current session
+Ctrl + b then $
+
+# Detach from current session
+Ctrl + b then d
+
+# Split pane vertically (side by side)
+Ctrl + b then %
+
+# Split pane horizontally (top and bottom)
+Ctrl + b then "
+
+# Move between panes
+Ctrl + b then arrow key
+
+# Close current pane
+Ctrl + b then x
+
+# Create new window
+Ctrl + b then c
+
+# Next or previous window
+Ctrl + b then n or p
+
+[mv]
+
+# Move or rename a file
+mv OLD_NAME NEW_NAME
+
+# Move a file into a directory
+mv FILE DIR/
+
+# Move multiple files into a directory
+mv FILE_1 FILE_2 DIR/
+
+# Move without overwriting existing files
+mv -n FILE DIR/
+
+# Prompt before overwriting
+mv -i FILE DIR/
+
+# Show each file as it is moved
+mv -v FILE DIR/
+
+[cp]
+
+# Copy a file
+cp FILE COPY
+
+# Copy a file into a directory
+cp FILE DIR/
+
+# Copy a directory recursively
+cp -r SRC_DIR DEST_DIR
+
+# Copy and preserve permissions and timestamps
+cp -p FILE COPY
+
+# Prompt before overwriting
+cp -i FILE DIR/
+
+# Show each file as it is copied
+cp -v FILE DIR/
+
+[git]
+
+# Show working tree status
+git status
+
+# Show unstaged changes
+git diff
+
+# Show staged changes
+git diff --staged
+
+# Stage all changes
+git add -A
+
+# Commit with message
+git commit -m "MESSAGE"
+
+# Amend last commit without changing message
+git commit --amend --no-edit
+
+# Compact one-line log with graph
+git log --oneline --graph --decorate
+
+# Create and switch to new branch
+git switch -c BRANCH_NAME
+
+# Switch to existing branch
+git switch BRANCH_NAME
+
+# List local branches
+git branch
+
+# Delete local branch
+git branch -d BRANCH_NAME
+
+# Pull with rebase
+git pull --rebase
+
+# Push and set upstream
+git push -u origin BRANCH_NAME
+
+# Stash changes
+git stash
+
+# Apply and drop latest stash
+git stash pop
+
+# Discard changes to a file
+git restore FILE
+
+# Unstage a file
+git restore --staged FILE
+
+# Undo last commit but keep changes
+git reset --soft HEAD~1
+
+[docker]
+
+# view containers
+docker ps
+
+# view all containers including stopped
+docker ps -a
+
+# view images
+docker images
+
+# run a container interactively and remove it on exit
+docker run -it --rm IMAGE bash
+
+# open a shell in a running container
+docker exec -it CONTAINER bash
+
+# follow container logs
+docker logs -f CONTAINER
+
+# stop a container
+docker stop CONTAINER
+
+# delete containers
+docker rm CONTAINER_1 CONTAINER_2
+
+# delete images
+docker rmi IMAGE_1 IMAGE_2
+
+# build image from current directory
+docker build -t IMAGE_NAME .
+
+# docker disk usage
+docker system df
+
+# delete buildkit cache (--all --force)
+docker builder prune -af
+
+# delete docker images (--all --force)
+docker image prune -af
+
+# delete single docker image
+docker image prune
+
+# delete all unused containers, networks, images, and cache
+docker system prune -af
+
+# list volumes
+docker volume ls
+
+# start compose services in background
+docker compose up -d
+
+# stop and remove compose services
+docker compose down
+
+# check status
+colima status
+
+# start
+colima start
+
+# stop
+colima stop
+
+# restart
+colima restart
+
+# start with custom cpu, memory (GB), and disk (GB)
+colima start --cpu CPUS --memory MEMORY_GB --disk DISK_GB
+
+# open a shell in the colima vm
+colima ssh
+
+# tell apple file system (APFS) that disk space has been freed up (e.g. after docker prune)
+colima ssh -- sudo fstrim -av
+
+# delete the colima vm
+colima delete
+
+[tofu]
+
+# initialize working directory
+tofu init
+
+# preview changes
+tofu plan
+
+# apply changes
+tofu apply
+
+# destroy managed infrastructure
+tofu destroy
+
+# format config files
+tofu fmt
+
+# validate config
+tofu validate
+
+# list resources in state
+tofu state list
+
+[terraform]
+
+# initialize working directory
+terraform init
+
+# preview changes
+terraform plan
+
+# apply changes
+terraform apply
+
+# apply without confirmation prompt
+terraform apply -auto-approve
+
+# destroy managed infrastructure
+terraform destroy
+
+# format config files
+terraform fmt
+
+# validate config
+terraform validate
+
+# list resources in state
+terraform state list
+
+# show outputs
+terraform output
+
+# list workspaces
+terraform workspace list
+
+# select a workspace
+terraform workspace select WORKSPACE_NAME
+
+[mise]
+
+# run ci
+mise run ci
+
+# list available tasks
+mise tasks
+
+# install tools from config
+mise install
+
+# list installed tools
+mise ls
+
+# install and use a tool version globally
+mise use -g TOOL@VERSION
+
+# install and use a tool version in current project
+mise use TOOL@VERSION
+
+# show current tool versions
+mise current
+
+# upgrade all tools
+mise upgrade
+
+# check for setup problems
+mise doctor
+
+[zed]
+
+# open current directory in zed
+zed .
+
+# open a file in zed
+zed FILE
+
+# command palette
+cmd + shift + p
+
+# file finder
+cmd + p
+
+# search across project
+cmd + shift + f
+
+# toggle terminal panel
+ctrl + `
+
+# toggle left dock (project panel)
+cmd + b
+
+# go to line
+ctrl + g
+
+# open settings
+cmd + ,
+
+[shell]
+
+# Navigate to end or start of line
+cmd + right or cmd + left
+
+# Navigate to next word or last word (Navigate back or forward words)
+option + right or option + left
+
+# Clear line
+ctl + u
+
+# Clear from cursor to end of line
+ctl + k
+
+# Clear screen
+ctl + l
+
+# Search command history
+ctl + r
+
+# Repeat last command
+!!
+
+# Repeat last command with sudo
+sudo !!
+
+# check system disk use
+df -h /System/Volumes/Data
+
+[disk]
+
+# check size of a directory
+du -sh DIR
+
+# check computer disk use
+df -h /System/Volumes/Data
+
+# show all mounted filesystems
+df -h
+
+# list largest items in current directory
+du -sh * | sort -rh | head -n 10
+
+[du]
+
+# check size of a directory
+du -sh DIR
+
+# check size of each item in a directory
+du -sh DIR/*
+
+# list largest items in current directory
+du -sh * | sort -rh | head -n 10
+
+# show sizes one directory level deep
+du -h -d 1 DIR
+
+[k9s]
+
+# launch or start k9s with context
+k9s --context CONTEXT_NAME
+
+# launch in a specific namespace
+k9s -n NAMESPACE
+
+# view all namespaces
+0
+
+# jump to a resource (pods, svc, deploy, etc)
+: then RESOURCE
+
+# filter current view
+/ then SEARCH_TERM
+
+# describe selected resource
+d
+
+# view logs of selected resource
+l
+
+# open a shell in selected pod
+s
+
+# delete selected resource
+ctrl + d
+
+# go back or clear filter
+esc
+
+# quit
+:q
