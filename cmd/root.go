@@ -6,6 +6,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -54,8 +55,11 @@ du -sh DIR   # check size of a directory
 
 The goal is to make it easiy to quickly recall and copy commands when working
 in shell environments.`,
-	Args: cobra.ArbitraryArgs,
-	Run: func(cmd *cobra.Command, args []string) {
+	Args:          cobra.MinimumNArgs(1),
+	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		// 'args' captures all arbitrary positional arguments
 		for i := range args {
 			args[i] = strings.ToLower(args[i])
@@ -66,7 +70,7 @@ in shell environments.`,
 			Split:  args,
 		}
 
-		searchManager(query)
+		return searchCoordinator(query)
 	},
 }
 
@@ -75,6 +79,7 @@ in shell environments.`,
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -91,32 +96,48 @@ func init() {
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func searchManager(query Query) {
+func searchCoordinator(query Query) error {
 	files := listFiles()
 
-	// 1. Create a channel to collect results
-	resultsChan := make(chan Result)
 	var wg sync.WaitGroup
 
-	// 2. Launch child functions concurrently
 	wg.Add(len(files))
 
+	resultsChan := make(chan Result)
+	errsChan := make(chan error, len(files))
+
 	for _, v := range files {
-		go scanFile(v, query, resultsChan, &wg)
+		go func() {
+			defer wg.Done()
+			if err := scanFile(v, query, resultsChan); err != nil {
+				errsChan <- err
+			}
+		}()
 	}
 
 	// 3. Close the channel once all children are completely done
 	go func() {
 		wg.Wait()
 		close(resultsChan)
+		close(errsChan)
 	}()
 
-	// 4. Collect results into the root slice safely (no data race)
 	var finalResults []Result
 	for r := range resultsChan {
 		finalResults = append(finalResults, r)
+	}
 
-		//fmt.Printf("MatchScore %d\n%s  %s\n\n", r.Score, r.Cmd, r.Desc)
+	var scanErrs []error
+	for e := range errsChan {
+		scanErrs = append(scanErrs, e)
+	}
+
+	if len(scanErrs) == len(files) {
+		return errors.Join(scanErrs...) // nothing worked: fail
+	}
+
+	for _, e := range scanErrs {
+		fmt.Fprintln(os.Stderr, "warning:", e) // some worked: degrade
 	}
 
 	// fmt.Println("Query Complete: ", query.Joined)
@@ -140,9 +161,10 @@ func searchManager(query Query) {
 	index, _, err := prompt.Run()
 
 	if err != nil {
-		// Handles cases where user exits early (e.g., presses Ctrl+C)
-		fmt.Printf("\nPrompt cancelled: %v\n", err)
-		return
+		if errors.Is(err, promptui.ErrInterrupt) || errors.Is(err, promptui.ErrEOF) {
+			return nil
+		}
+		return fmt.Errorf("prompt: %w", err)
 	}
 
 	selectedOption := finalResults[index]
@@ -150,26 +172,26 @@ func searchManager(query Query) {
 	// copy to keyboard
 	// One line of code to copy text
 	err = clipboard.WriteAll(selectedOption.Cmd)
+
 	if err != nil {
-		fmt.Println("Failed to copy:", err)
-		return
+		return fmt.Errorf("clipboard writeall: %w", err)
 	}
 
 	fmt.Printf("\n🚀 Copied to clipboard: %s\n", selectedOption.Cmd)
+
+	return nil
 }
 
 func listFiles() []string {
 	return []string{"internal/data.txt"}
 }
 
-func scanFile(filepath string, query Query, ch chan<- Result, wg *sync.WaitGroup) {
-	defer wg.Done()
+func scanFile(filename string, query Query, ch chan<- Result) error {
 
-	file, err := os.Open(filepath)
+	file, err := os.Open(filename)
 
 	if err != nil {
-		fmt.Printf("Error opening file %s: %v\n", filepath, err)
-		return
+		return err
 	}
 
 	defer file.Close()
@@ -208,8 +230,10 @@ func scanFile(filepath string, query Query, ch chan<- Result, wg *sync.WaitGroup
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Printf("Error reading file content: %v\n", err)
+		return fmt.Errorf("reading %s: %w", filename, err)
 	}
+
+	return nil
 }
 
 func scanChunk(query Query, chunk string) []Result {
