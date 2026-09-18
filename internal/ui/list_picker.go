@@ -83,7 +83,6 @@ func newModel(choices []Choice) model {
 		naturalTitle: naturalTitle,
 		naturalDesc:  naturalDesc,
 	}
-	m.styles = newStyles()
 	m.resize()
 	return m
 }
@@ -156,31 +155,24 @@ func onResize(f func()) (stop func()) {
 	}
 }
 
-type styles struct {
-	choice         lipgloss.Style
-	selectedChoice lipgloss.Style
-	pagination     lipgloss.Style
-	help           lipgloss.Style
-}
-
-func newStyles() styles {
-	var s styles
-	s.choice = lipgloss.NewStyle().PaddingLeft(rowPad)
+// Styles do not vary: the theme parameter that once made them per-model went
+// with ADR-04.
+var (
+	rowStyle = lipgloss.NewStyle().PaddingLeft(rowPad)
 
 	// Reverse borrows the terminal's own palette, so the hovered row stays
 	// legible in a theme this package cannot see. Width is set per-resize.
-	s.selectedChoice = lipgloss.NewStyle().PaddingLeft(rowPad).Reverse(true)
+	hoveredStyle = lipgloss.NewStyle().PaddingLeft(rowPad).Reverse(true)
 
 	// Written out rather than taken from list.DefaultStyles: helpRows counts the
 	// top padding row, which a library default could stop providing.
-	s.pagination = lipgloss.NewStyle().PaddingLeft(rowPad)
-	s.help = lipgloss.NewStyle().Padding(1, 0, 0, rowPad)
-	return s
-}
+	paginationStyle = lipgloss.NewStyle().PaddingLeft(rowPad)
+	helpStyle       = lipgloss.NewStyle().Padding(1, 0, 0, rowPad)
+)
 
 type choiceDelegate struct {
-	styles     styles // by value: no aliasing, no nil deref
-	titleWidth int    // padded width of the title column, 0 = unaligned
+	hovered    lipgloss.Style // rowStyle plus reverse, carrying this size's bar width
+	titleWidth int            // padded width of the title column, 0 = unaligned
 }
 
 func (d choiceDelegate) Height() int                             { return 1 }
@@ -201,9 +193,9 @@ func (d choiceDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 	}
 	row := title + descSep + choice.Desc
 
-	style := d.styles.choice
+	style := rowStyle
 	if index == m.Index() {
-		style = d.styles.selectedChoice
+		style = d.hovered
 	}
 
 	// Bound by the style that actually renders the row: lipgloss wraps at
@@ -222,7 +214,6 @@ func (d choiceDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 type model struct {
 	list          list.Model
 	choice        int
-	styles        styles
 	width, height int
 	naturalTitle  int // widest Choice.Title across all choices, in display cells
 	naturalDesc   int // widest Choice.Desc, same units
@@ -250,14 +241,14 @@ func (m *model) resize() {
 
 	// Every title renders at exactly titleWidth, so the widest row is that
 	// column plus the widest description — no need to render them to find out.
-	delegateStyles := m.styles
-	pad := delegateStyles.choice.GetHorizontalPadding()
+	pad := rowStyle.GetHorizontalPadding()
+	hovered := hoveredStyle
 	if content := min(titleWidth+descGap+m.naturalDesc, m.width-pad); content > 0 {
-		delegateStyles.selectedChoice = delegateStyles.selectedChoice.Width(pad + content)
+		hovered = hovered.Width(pad + content)
 	}
 
 	m.list.SetDelegate(choiceDelegate{
-		styles:     delegateStyles,
+		hovered:    hovered,
 		titleWidth: titleWidth,
 	})
 
@@ -267,8 +258,8 @@ func (m *model) resize() {
 	// and keeps a binding when even its ellipsis will not fit — so MaxWidth is
 	// the backstop, since lipgloss truncates the rendered line last of all.
 	m.list.Help.SetWidth(max(m.width-pad, 0))
-	m.list.Styles.HelpStyle = m.styles.help.MaxWidth(m.width)
-	m.list.Styles.PaginationStyle = m.styles.pagination.MaxWidth(m.width)
+	m.list.Styles.HelpStyle = helpStyle.MaxWidth(m.width)
+	m.list.Styles.PaginationStyle = paginationStyle.MaxWidth(m.width)
 }
 
 func (m model) Init() tea.Cmd {

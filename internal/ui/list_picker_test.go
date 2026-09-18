@@ -238,7 +238,7 @@ func TestHoveredRowIsAReverseBar(t *testing.T) {
 	// Equality, not a bound: a bound would also pass for a bar that hugs each
 	// row's own text.
 	c := sample(1)[0]
-	pad := newStyles().choice.GetHorizontalPadding()
+	pad := rowStyle.GetHorizontalPadding()
 	want := pad + ansi.StringWidth(c.Title) + descGap + ansi.StringWidth(c.Desc)
 
 	if got := reverseWidth(strings.Split(frame, "\n")[lit[0]]); got != want {
