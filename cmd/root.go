@@ -7,9 +7,16 @@ import (
 	"wut/internal/search"
 	"wut/internal/ui"
 
+	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/spf13/cobra"
 )
+
+// Basic ANSI green rather than a hex value: ANSI 2 is whatever green the user's
+// theme defines, so the mark reads against a background this command cannot
+// see. Same reasoning as the picker's reverse-video highlight (ADR-04).
+var copiedMark = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("✔")
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -72,7 +79,7 @@ func run(query search.Query) error {
 	// Finding nothing is a normal outcome of a search, not a failure: report it
 	// and exit 0. Going further would open a picker with no index to return.
 	if len(results) == 0 {
-		fmt.Fprintf(os.Stderr, "no matches for %q\n", query.Joined)
+		fmt.Fprintf(os.Stderr, "No Results Found For: %s\n", query.Joined)
 		return nil
 	}
 
@@ -101,7 +108,11 @@ func run(query search.Query) error {
 
 	// No leading newline: the erase leaves the cursor on the frame's blank
 	// first row, so this lands directly under the invoking command line.
-	fmt.Printf("🚀 Copied to clipboard: %s\n", selected.Cmd)
+	//
+	// Through colorprofile so the mark degrades rather than leaks: it strips the
+	// escape when stdout is not a terminal, and honours NO_COLOR and CLICOLOR.
+	fmt.Fprintf(colorprofile.NewWriter(os.Stdout, os.Environ()),
+		"%s Copied: %s\n", copiedMark, selected.Cmd)
 
 	return nil
 }
