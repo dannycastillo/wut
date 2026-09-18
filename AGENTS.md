@@ -177,6 +177,24 @@ To change course, write a new ADR carrying `**Supersedes:** ADR-NN`, and add a
 `**Superseded by:** ADR-MM` line to the old one's status block. Adding that
 back-pointer is the only edit an accepted ADR ever takes.
 
+## Comments
+
+A comment earns its place when the code is surprising: a workaround, a measured
+constant, an upstream bug, an invariant two files share, a non-obvious ordering.
+The things a reader would otherwise "fix".
+
+Everything else is noise. The reasoning behind a design goes in the commit
+message or an ADR, where it cannot drift out of sync with the code it describes,
+and where this repo already expects it in full.
+
+- Default to none. The code says what it does; a comment says why it looks wrong.
+- Keep Go's doc comments — exported identifiers and package docs, stated plainly.
+- A comment longer than the code it describes is arguing a design. Move it.
+- Never restate the line below, number steps, or leave commented-out code.
+
+This governs source files only. Explanations in review and in chat are a
+different thing and stay as long as they need to be.
+
 ## Todo
 
 Work that needs doing lives in `todo/`, one file per item. `ls todo/` is the

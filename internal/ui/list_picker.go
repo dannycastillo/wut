@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -13,6 +15,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// ErrAborted means the picker closed without a selection, whether the user
+// dismissed it or a resize did.
 var ErrAborted = errors.New("selection aborted")
 
 // Layout tuning, all in terminal rows.
@@ -21,28 +25,20 @@ const (
 	reservedRows  = 2  // the invoking command line, and the line cmd prints on exit
 	minVisible    = 3  // keep a decoration only while this many choices fit under it
 
-	// What each decoration costs in list chrome, measured: pagination is its
-	// line plus a separator row, help is its line plus the blank row from
-	// HelpStyle's top padding. helpRows is the cost of showing both, since help
-	// is the outer one — bubbles/list floors at 5 rows with both, 3 with
-	// pagination only, 1 with neither.
+	// Measured, not derived: bubbles/list floors at 5 rows with both
+	// decorations, 3 with pagination only, 1 with neither.
 	helpRows       = 4
 	paginationRows = 2
 )
 
-// The gap between the title column and the description: the string a row is
-// joined with, and the width resize measures. One constant so the two can't
-// drift apart.
+// One constant, so the string a row is joined with and the width resize
+// measures cannot drift apart.
 const (
 	descSep = "  "
 	descGap = len(descSep)
 )
 
-// The picker's left margin, in cells. Every line the picker paints takes it —
-// rows, pagination and help — so the whole frame sits on one column. bubbles'
-// own chrome defaults to 2, which is part of why newStyles writes those styles
-// out rather than taking the library's.
-const rowPad = 1
+const rowPad = 1 // left margin, on every line the picker paints
 
 // Choice is everything the picker needs to draw one row.
 type Choice struct {
@@ -52,8 +48,8 @@ type Choice struct {
 
 func (c Choice) FilterValue() string { return c.Title + " " + c.Desc }
 
-// newModel builds the picker without running it, so its layout and key
-// handling are testable as pure functions.
+// newModel builds the picker without running it, so layout and key handling are
+// testable without a TTY.
 func newModel(choices []Choice) model {
 	items := make([]list.Item, len(choices))
 	naturalTitle, naturalDesc := 0, 0
@@ -65,14 +61,12 @@ func newModel(choices []Choice) model {
 
 	l := list.New(items, choiceDelegate{}, 0, 0) // real size arrives via WindowSizeMsg
 
-	// Not redundant with assigning no Title: list.New defaults to showTitle
-	// with Title "List", so without this the picker draws that word.
+	// Not redundant with assigning no Title: list.New defaults Title to "List".
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 
-	// The default keymap binds Quit to "v" and labels it "select", which is
-	// both wrong and not what Update implements.
+	// The default keymap binds Quit to "v" and labels it "select".
 	l.KeyMap.Quit = key.NewBinding(
 		key.WithKeys("q", "esc"),
 		key.WithHelp("q/esc", "quit"),
@@ -89,19 +83,23 @@ func newModel(choices []Choice) model {
 		naturalTitle: naturalTitle,
 		naturalDesc:  naturalDesc,
 	}
-	m.updateStyles()
+	m.resize()
 	return m
 }
 
+// Pick runs the picker and returns the index of the chosen Choice, or
+// ErrAborted if it closed without one.
 func Pick(choices []Choice) (int, error) {
-	// Never open an empty picker: there is no index it could honestly return.
 	if len(choices) == 0 {
-		return -1, ErrAborted
+		return -1, ErrAborted // no index it could honestly return
 	}
 
-	m := newModel(choices)
+	p := tea.NewProgram(newModel(choices), tea.WithOutput(os.Stderr))
 
-	final, err := tea.NewProgram(m, tea.WithOutput(os.Stderr)).Run()
+	stop := onResize(p.Quit)
+	defer stop()
+
+	final, err := p.Run()
 	if err != nil {
 		return -1, fmt.Errorf("run picker: %w", err)
 	}
@@ -111,15 +109,13 @@ func Pick(choices []Choice) (int, error) {
 		return -1, ErrAborted
 	}
 
-	// Bubble Tea leaves its final frame in the scrollback. Walk back up to the
-	// first row it painted and erase from there down. CPL is relative, so it
-	// stays correct even if the terminal scrolled while the picker was open.
+	// Bubble Tea leaves its final frame in the scrollback, so walk back to the
+	// first row it painted and erase from there down.
 	//
 	// The leading \r is not cosmetic: a row padded to the full list width can
 	// leave the cursor in the pending-wrap state — still on row N, but the next
 	// glyph lands on N+1. Terminals disagree on whether CPL then counts from N
-	// or N+1, which cost one row (the user's command line) in Terminal.app. \r
-	// resolves the ambiguity before any vertical movement.
+	// or N+1, which cost one row in Terminal.app.
 	if n := lipgloss.Height(fm.frame()) - 1; n > 0 {
 		fmt.Fprintf(os.Stderr, "\r\x1b[%dF\x1b[0J", n)
 	}
@@ -130,72 +126,83 @@ func Pick(choices []Choice) (int, error) {
 	return fm.choice, nil
 }
 
-type styles struct {
-	choice         lipgloss.Style
-	selectedChoice lipgloss.Style
-	pagination     lipgloss.Style
-	help           lipgloss.Style
+// onResize calls f on every terminal resize until the returned stop is called.
+//
+// This exists to get ahead of Bubble Tea, which handles the same signal: its
+// WindowSizeMsg costs two trips through the event loop and an ioctl in between,
+// and it repaints the frame on that message before the model is given a say.
+// The signal is the earliest the picker can know, and every repaint after the
+// terminal has moved is one it cannot take back.
+func onResize(f func()) (stop func()) {
+	winch := make(chan os.Signal, 1)
+	signal.Notify(winch, syscall.SIGWINCH)
+
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-winch:
+				f()
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	return func() {
+		signal.Stop(winch)
+		close(done)
+	}
 }
 
-func newStyles() styles {
-	var s styles
-	s.choice = lipgloss.NewStyle().PaddingLeft(rowPad)
+// Styles do not vary: the theme parameter that once made them per-model went
+// with ADR-04.
+var (
+	rowStyle = lipgloss.NewStyle().PaddingLeft(rowPad)
 
-	// Reverse borrows the terminal's own palette, so the hovered row is legible
-	// in any theme without this package choosing a color. Same padding as an
-	// unselected row — with the "> " cursor gone there is no column to reserve,
-	// and equal padding is what keeps every row's text on one column. The bar's
-	// width is set per-resize.
-	s.selectedChoice = lipgloss.NewStyle().PaddingLeft(rowPad).Reverse(true)
+	// Reverse borrows the terminal's own palette, so the hovered row stays
+	// legible in a theme this package cannot see. Width is set per-resize.
+	hoveredStyle = lipgloss.NewStyle().PaddingLeft(rowPad).Reverse(true)
 
-	// Padding only. Written out rather than fetched from
-	// list.DefaultStyles(isDark), which carries no color in these two fields
-	// and so let a dead theme parameter look load-bearing — and because
-	// helpRows depends on the top padding row being here, which a library
-	// default could stop providing without us noticing.
-	s.pagination = lipgloss.NewStyle().PaddingLeft(rowPad)
-	s.help = lipgloss.NewStyle().Padding(1, 0, 0, rowPad)
-	return s
-}
+	// Written out rather than taken from list.DefaultStyles: helpRows counts the
+	// top padding row, which a library default could stop providing.
+	paginationStyle = lipgloss.NewStyle().PaddingLeft(rowPad)
+	helpStyle       = lipgloss.NewStyle().Padding(1, 0, 0, rowPad)
+)
 
 type choiceDelegate struct {
-	styles     styles // by value: no aliasing, no nil deref
-	titleWidth int    // padded width of the title column, 0 = unaligned
+	hovered    lipgloss.Style // rowStyle plus reverse, carrying this size's bar width
+	titleWidth int            // padded width of the title column, 0 = unaligned
 }
 
 func (d choiceDelegate) Height() int                             { return 1 }
 func (d choiceDelegate) Spacing() int                            { return 0 }
 func (d choiceDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
-// Render draws one Choice. item is the library's interface value; everything
-// past the assertion is ours and named accordingly.
 func (d choiceDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	choice, ok := item.(Choice)
 	if !ok || m.Width() <= 0 {
 		return // no size yet; first frame before WindowSizeMsg
 	}
 
-	// Truncate before padding: Width() wraps content that overflows.
 	title := choice.Title
 	if d.titleWidth > 0 {
+		// Truncate before padding: Width() wraps content that overflows.
 		title = lipgloss.NewStyle().Width(d.titleWidth).
 			Render(ansi.Truncate(title, d.titleWidth, "…"))
 	}
-
 	row := title + descSep + choice.Desc
 
-	// Pick the style before measuring against it: lipgloss wraps at
-	// width-padding, so bounding the row by the style that actually renders it
-	// makes the truncation and the reverse fill agree by construction. The bar
-	// stays solid, and the row can never wrap and break Height()==1.
-	style := d.styles.choice
+	style := rowStyle
 	if index == m.Index() {
-		style = d.styles.selectedChoice
+		style = d.hovered
 	}
 
-	bound := m.Width()
-	if barWidth := style.GetWidth(); barWidth > 0 {
-		bound = barWidth
+	// Bound by the style that actually renders the row: lipgloss wraps at
+	// width-padding, and a wrapped row breaks the Height()==1 delegate contract.
+	bound := style.GetWidth()
+	if bound == 0 {
+		bound = m.Width()
 	}
 	if avail := bound - style.GetHorizontalPadding(); avail > 0 {
 		row = ansi.Truncate(row, avail, "…")
@@ -207,59 +214,52 @@ func (d choiceDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 type model struct {
 	list          list.Model
 	choice        int
-	styles        styles
 	width, height int
 	naturalTitle  int // widest Choice.Title across all choices, in display cells
 	naturalDesc   int // widest Choice.Desc, same units
-}
-
-func (m *model) updateStyles() {
-	m.styles = newStyles()
-	m.list.Styles.PaginationStyle = m.styles.pagination
-	m.list.Styles.HelpStyle = m.styles.help
-	m.resize()
 }
 
 // resize sizes the list from the terminal, never the other way around.
 func (m *model) resize() {
 	m.list.SetWidth(m.width)
 
-	// Rows the picker paints around the list itself, measured so that
-	// restyling frame() can never silently break this.
+	// Measured rather than assumed, so restyling frame() cannot silently break
+	// the arithmetic below.
 	chrome := lipgloss.Height(m.frame()) - lipgloss.Height(m.list.View())
-
 	avail := m.height - chrome - reservedRows
 
-	// Shed chrome rather than overflow: keep a decoration only while enough
-	// choices still fit underneath it, or it crowds out what it decorates.
+	// Shed chrome rather than overflow.
 	m.list.SetShowHelp(avail-helpRows >= minVisible)
 	m.list.SetShowPagination(avail-paginationRows >= minVisible)
 
-	avail = min(avail, maxListHeight)
-	avail = max(avail, 1)
-	m.list.SetHeight(avail)
+	m.list.SetHeight(max(min(avail, maxListHeight), 1))
 
-	// The title column gets at most half the width.
 	titleWidth := 0
 	if m.width > 0 {
 		titleWidth = min(m.naturalTitle, m.width/2)
 	}
 
-	// The bar spans the widest row, not the terminal: a straight right edge,
-	// without inverting half a wide terminal. Every title renders at exactly
-	// titleWidth, so the widest row is that column plus the widest description
-	// — no need to render them all to find out. Clamped so the bar can never
-	// outrun the terminal.
-	delegateStyles := m.styles
-	pad := delegateStyles.choice.GetHorizontalPadding()
+	// Every title renders at exactly titleWidth, so the widest row is that
+	// column plus the widest description — no need to render them to find out.
+	pad := rowStyle.GetHorizontalPadding()
+	hovered := hoveredStyle
 	if content := min(titleWidth+descGap+m.naturalDesc, m.width-pad); content > 0 {
-		delegateStyles.selectedChoice = delegateStyles.selectedChoice.Width(pad + content)
+		hovered = hovered.Width(pad + content)
 	}
 
 	m.list.SetDelegate(choiceDelegate{
-		styles:     delegateStyles,
+		hovered:    hovered,
 		titleWidth: titleWidth,
 	})
+
+	// JoinVertical pads every section to the widest one, so a single over-wide
+	// line makes every row that wide and the terminal wraps all of them. bubbles
+	// sizes the help to the list width, unaware of the padding HelpStyle adds,
+	// and keeps a binding when even its ellipsis will not fit — so MaxWidth is
+	// the backstop, since lipgloss truncates the rendered line last of all.
+	m.list.Help.SetWidth(max(m.width-pad, 0))
+	m.list.Styles.HelpStyle = helpStyle.MaxWidth(m.width)
+	m.list.Styles.PaginationStyle = paginationStyle.MaxWidth(m.width)
 }
 
 func (m model) Init() tea.Cmd {
@@ -269,9 +269,25 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		m.resize()
-		return m, nil
+		switch {
+		case m.width == 0 && m.height == 0:
+			m.width, m.height = msg.Width, msg.Height
+			m.resize()
+			return m, nil
+
+		case msg.Width == m.width && msg.Height == m.height:
+			return m, nil // Bubble Tea re-sends the current size in some situations
+		}
+
+		// Any real change closes the picker. It draws relative to its own first
+		// row and erases only downward, so once the terminal moves rows it has
+		// already emitted — by scrolling or re-wrapping them — they are beyond
+		// anything it can erase, and repainting adds a second copy underneath.
+		//
+		// No resize() here: Pick's erase counts back from the frame, so it has
+		// to keep matching what is on screen. choice stays -1, so this reaches
+		// the caller as ErrAborted like any other close.
+		return m, tea.Quit
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -279,8 +295,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "enter":
-			// SelectedItem is nil on an empty list, where GlobalIndex would
-			// still report 0 and hand the caller an index into nothing.
+			// GlobalIndex reports 0 on an empty list, which would hand the
+			// caller an index into nothing.
 			if m.list.SelectedItem() == nil {
 				return m, nil
 			}
@@ -294,17 +310,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// frame is the exact string the picker paints; its line count equals the number
-// of rows actually drawn.
+// frame is the exact string the picker paints; its line count is what Pick's
+// erase counts back from.
 func (m model) frame() string {
 	return "\n" + m.list.View()
 }
 
-// View always paints the full frame, including after tea.Quit. An empty final
-// view would zero the renderer's cell buffer, and its shutdown path then runs
-// MoveTo(0, cellbuf.Height()-1) — MoveTo(0, -1) — leaving the cursor somewhere
-// terminal-dependent. Keeping a real height means shutdown lands on the frame's
-// true bottom row, which is what Pick's erase counts back from.
+// View always paints a frame with real height, including after tea.Quit. An
+// empty final view zeroes the renderer's cell buffer, whose shutdown then runs
+// MoveTo(0, -1) and leaves the cursor somewhere terminal-dependent.
 func (m model) View() tea.View {
 	return tea.NewView(m.frame())
 }

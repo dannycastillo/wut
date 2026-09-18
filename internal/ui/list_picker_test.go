@@ -2,9 +2,14 @@ package ui
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -52,10 +57,8 @@ func reversed(frame string) []int {
 	return out
 }
 
-// reverseWidth returns how many display cells of a line are painted in reverse
-// video. That is the bar's width, which is not the line's: JoinVertical pads
-// every section out to the widest one with ordinary spaces, so measuring the
-// line would measure the chrome instead.
+// reverseWidth returns the bar's width, which is not the line's: JoinVertical
+// pads every section out to the widest with ordinary spaces.
 func reverseWidth(line string) int {
 	const (
 		on  = "\x1b[7m"
@@ -91,43 +94,54 @@ func TestFrameFitsTerminal(t *testing.T) {
 	}
 }
 
-// choiceDelegate.Height reports 1, which is a contract with bubbles/list: it
-// allocates exactly one row per item and derives pagination and cursor
-// position from that. A row wider than the terminal makes the *terminal* wrap
-// it to two lines, breaking the contract at display time.
-//
-// Width is the assertion that matters here, not height: lipgloss never wraps,
-// so an over-wide row shows up as an over-wide frame, never as a taller one.
+// Every width, not a sample: the help overflows only in a band, and three
+// sampled widths walked straight past it.
 func TestRowsNeverExceedTerminalWidth(t *testing.T) {
 	long := strings.Repeat("du -sh * | sort -rh | head -n 10 ", 8)
 
-	wide := make([]Choice, 8)
-	for i := range wide {
-		wide[i] = Choice{Title: long, Desc: long}
+	// The bar is sized from the widest description, so mixed lengths exercise
+	// padding that a uniform fixture never reaches.
+	fixtures := map[string][]Choice{
+		"uniform long": {{Title: long, Desc: long}, {Title: long, Desc: long}},
+		"realistic": {
+			{Title: "docker exec -it CONTAINER bash", Desc: "# open a shell in a running container"},
+			{Title: "docker logs -f CONTAINER", Desc: "# follow container logs"},
+			{Title: "docker run -it --rm IMAGE bash", Desc: "# run a container interactively and remove it on exit"},
+			{Title: "ls", Desc: "# short"},
+		},
+		"identical": sample(20),
 	}
 
-	for _, w := range []int{40, 80, 120} {
-		m := size(t, newModel(wide), w, 24)
+	for name, choices := range fixtures {
+		for w := 10; w <= 120; w++ {
+			m := size(t, newModel(choices), w, 24)
 
-		if got := lipgloss.Width(m.frame()); got > w {
-			t.Errorf("width %d: frame rendered %d columns wide", w, got)
-		}
-		for i, line := range strings.Split(m.frame(), "\n") {
-			if got := lipgloss.Width(line); got > w {
-				t.Errorf("width %d: line %d is %d columns", w, i, got)
+			for i, line := range strings.Split(m.frame(), "\n") {
+				if got := lipgloss.Width(line); got > w {
+					t.Errorf("%s at width %d: line %d is %d columns:\n%q",
+						name, w, i, got, ansi.Strip(line))
+				}
 			}
 		}
 	}
 }
 
-// Chrome is shed as the terminal shrinks rather than overflowing, and results
-// stay visible at every size.
-//
-// The decoration assertions are not decoration themselves: helpRows and
-// paginationRows are measured costs, and overstating them sheds silently — the
-// frame still fits and results are still visible, so nothing else here would
-// notice. The two heights that pin them are 8, where pagination is the last
-// thing that fits, and 10, where help is.
+// MaxWidth alone would fit the line by chopping it. Sizing the help to the room
+// it has lets bubbles drop a binding cleanly instead.
+func TestHelpIsSizedToTheRoomItHas(t *testing.T) {
+	for _, w := range []int{40, 60, 80} {
+		m := size(t, newModel(sample(20)), w, 24)
+
+		if got, want := m.list.Help.Width(), w-rowPad; got != want {
+			t.Errorf("width %d: help sized to %d, want %d — the terminal less the padding HelpStyle adds",
+				w, got, want)
+		}
+	}
+}
+
+// Overstating helpRows or paginationRows sheds silently, so the heights here
+// are the two that pin them: 8, where pagination is the last thing that fits,
+// and 10, where help is.
 func TestChromeShedsBeforeResults(t *testing.T) {
 	for _, tc := range []struct {
 		height                 int
@@ -152,9 +166,7 @@ func TestChromeShedsBeforeResults(t *testing.T) {
 			t.Errorf("height %d: pagination shown = %v, want %v:\n%s", tc.height, got, tc.wantPageDots, frame)
 		}
 
-		// HelpStyle's top padding is a rendered row, and one of the two that
-		// helpRows pays for. Trimming it to PaddingLeft would cost a row that
-		// the constant still charges for.
+		// HelpStyle's top padding is one of the two rows helpRows pays for.
 		if tc.wantHelp {
 			lines := strings.Split(frame, "\n")
 			for i, line := range lines {
@@ -170,10 +182,8 @@ func TestChromeShedsBeforeResults(t *testing.T) {
 	}
 }
 
-// The picker shows results and nothing else. Dropping the l.Title assignment
-// is not what achieves that: bubbles/list defaults to showing a title and
-// defaults the string to "List", so without SetShowTitle(false) the header
-// comes back reading "List" rather than disappearing.
+// Without SetShowTitle(false) the header comes back reading "List", which is
+// bubbles' default rather than anything this package set.
 func TestFrameOpensOnAResult(t *testing.T) {
 	m := size(t, newModel(sample(5)), 80, 24)
 	lines := strings.Split(m.frame(), "\n")
@@ -225,11 +235,10 @@ func TestHoveredRowIsAReverseBar(t *testing.T) {
 		t.Error("the ANSI-170 foreground is still being painted")
 	}
 
-	// The bar spans the widest row: the title column, the gap, and the widest
-	// description, plus the row padding. Asserting a bound rather than the
-	// value would also pass for a bar that hugs each row's own text.
+	// Equality, not a bound: a bound would also pass for a bar that hugs each
+	// row's own text.
 	c := sample(1)[0]
-	pad := newStyles().choice.GetHorizontalPadding()
+	pad := rowStyle.GetHorizontalPadding()
 	want := pad + ansi.StringWidth(c.Title) + descGap + ansi.StringWidth(c.Desc)
 
 	if got := reverseWidth(strings.Split(frame, "\n")[lit[0]]); got != want {
@@ -259,6 +268,88 @@ func TestBarSpansTheWidestRowNotItsOwn(t *testing.T) {
 
 	if first != second {
 		t.Errorf("bar is %d cells on the short row and %d on the long one; the edge should not move", first, second)
+	}
+}
+
+// The picker draws relative to its own first row and erases only downward, so
+// once the terminal moves rows it has already emitted those rows are beyond
+// reach. Which resizes do that is not knowable from here — it depends on the
+// rest of the screen and on how the terminal reflows — so every real change
+// closes it.
+func TestAnyResizeClosesThePicker(t *testing.T) {
+	m := size(t, newModel(sample(30)), 80, 24)
+
+	for _, tc := range []struct {
+		name string
+		w, h int
+	}{
+		{"one row shorter", 80, 23},
+		{"one column narrower", 79, 24},
+		{"one row taller", 80, 25},
+		{"one column wider", 81, 24},
+		{"much smaller", 20, 6},
+		{"much larger", 200, 60},
+		{"both at once", 60, 40},
+	} {
+		next, cmd := m.Update(tea.WindowSizeMsg{Width: tc.w, Height: tc.h})
+		got := next.(model)
+
+		if cmd == nil {
+			t.Errorf("%s (%dx%d): kept running, want close", tc.name, tc.w, tc.h)
+			continue
+		}
+		if _, ok := cmd().(tea.QuitMsg); !ok {
+			t.Errorf("%s (%dx%d): returned %T, want QuitMsg", tc.name, tc.w, tc.h, cmd())
+		}
+		if got.choice != -1 {
+			t.Errorf("%s (%dx%d): closed with choice %d, want none selected",
+				tc.name, tc.w, tc.h, got.choice)
+		}
+	}
+}
+
+// Bubble Tea re-sends the current size in some situations. Without this guard
+// the picker would close the moment it finished drawing.
+func TestResendingTheSameSizeIsNotAResize(t *testing.T) {
+	m := size(t, newModel(sample(30)), 80, 24)
+
+	next, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if cmd != nil {
+		t.Errorf("the same size returned %T, want no command", cmd())
+	}
+	if !strings.Contains(next.(model).frame(), "tofu init") {
+		t.Error("the same size tore the list down")
+	}
+}
+
+func TestFirstSizeOpensThePicker(t *testing.T) {
+	next, cmd := newModel(sample(30)).Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := next.(model)
+
+	if cmd != nil {
+		t.Errorf("opening returned %T, want no command", cmd())
+	}
+	if !strings.Contains(m.frame(), "tofu init") {
+		t.Error("opening did not lay the list out")
+	}
+}
+
+// Pick erases by counting back from the frame, so a frame it is about to
+// abandon has to keep matching what is on screen.
+func TestClosingLeavesTheFrameAlone(t *testing.T) {
+	m := size(t, newModel(sample(30)), 80, 24)
+	before := m.frame()
+
+	next, cmd := m.Update(tea.WindowSizeMsg{Width: 20, Height: 6})
+	got := next.(model)
+
+	if cmd == nil {
+		t.Fatal("expected that resize to close the picker")
+	}
+	if after := got.frame(); after != before {
+		t.Errorf("the frame was re-laid-out on the way out:\n%q\nwant unchanged:\n%q",
+			after, before)
 	}
 }
 
@@ -331,4 +422,73 @@ func TestPickRefusesEmpty(t *testing.T) {
 	if idx != -1 {
 		t.Errorf("idx = %d, want -1", idx)
 	}
+}
+
+// Drives the built binary under tmux, because what it guards is what the
+// terminal does with rows already emitted — nothing a model can observe.
+//
+//	WUT_TERMINAL_TESTS=1 go test ./internal/ui/ -run TestResizeLeavesNothingBehind
+func TestResizeLeavesNothingBehind(t *testing.T) {
+	if os.Getenv("WUT_TERMINAL_TESTS") == "" {
+		t.Skip("set WUT_TERMINAL_TESTS=1 to run (needs tmux, takes ~8s)")
+	}
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux is not installed")
+	}
+
+	dir := t.TempDir()
+
+	// Its own HOME, so the fixture is not whatever is in the developer's ~/.wut.
+	snippets := filepath.Join(dir, "home", ".wut")
+	if err := os.MkdirAll(snippets, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for i := range 12 {
+		fmt.Fprintf(&b, "# row %02d of the resize fixture\nzzfixture-%02d --flag\n\n", i, i)
+	}
+	if err := os.WriteFile(filepath.Join(snippets, "fixture.txt"), []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	bin := filepath.Join(dir, "wut")
+	if out, err := exec.Command("go", "build", "-o", bin, "wut").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+
+	session := "wut-resize-test"
+	tmux := func(args ...string) string {
+		out, err := exec.Command("tmux", args...).Output()
+		if err != nil && args[0] != "kill-session" {
+			t.Fatalf("tmux %s: %v", strings.Join(args, " "), err)
+		}
+		return string(out)
+	}
+	_ = exec.Command("tmux", "kill-session", "-t", session).Run()
+	t.Cleanup(func() { _ = exec.Command("tmux", "kill-session", "-t", session).Run() })
+
+	tmux("new-session", "-d", "-s", session, "-x", "80", "-y", "24")
+	// 1.8s, not 1.5s: at 1.5s this went intermittent, roughly one run in eight.
+	settle := func() { time.Sleep(1800 * time.Millisecond) }
+
+	tmux("send-keys", "-t", session,
+		fmt.Sprintf("HOME=%s PS1='> ' %s zzfixture", filepath.Join(dir, "home"), bin), "Enter")
+	settle()
+
+	count := func() int {
+		return strings.Count(tmux("capture-pane", "-p", "-t", session), "zzfixture-00")
+	}
+	if got := count(); got != 1 {
+		t.Fatalf("picker did not open cleanly: %d copies of the first row, want 1", got)
+	}
+
+	tmux("resize-window", "-t", session, "-x", "80", "-y", "8")
+	settle()
+
+	// The picker should have closed itself rather than repaint through a resize
+	// it cannot reason about, and taken its rows with it.
+	if got := count(); got != 0 {
+		t.Errorf("after a resize: %d picker rows still on screen, want 0", got)
+	}
+
 }
