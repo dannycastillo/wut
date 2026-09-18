@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -17,9 +16,17 @@ import (
 
 var ErrAborted = errors.New("selection aborted")
 
-// maxListHeight caps the picker so it stays a modest inline widget on a tall
-// terminal.
-const maxListHeight = 14
+// Layout tuning, all in terminal rows.
+const (
+	maxListHeight = 14 // cap, so the picker stays a modest inline widget
+	reservedRows  = 2  // the invoking command line, and the line cmd prints on exit
+	minVisible    = 3  // keep a decoration only while this many choices fit under it
+
+	// What each decoration costs in list chrome, measured: bubbles/list floors
+	// at 7 rows with both, 5 with pagination only, 3 with neither.
+	helpRows       = 6
+	paginationRows = 4
+)
 
 // Choice is everything the picker needs to draw one row.
 type Choice struct {
@@ -34,12 +41,12 @@ func (c Choice) FilterValue() string { return c.Title + " " + c.Desc }
 func newModel(title string, choices []Choice) model {
 	items := make([]list.Item, len(choices))
 	natural := 0
-	for i, c := range choices {
-		items[i] = c
-		natural = max(natural, ansi.StringWidth(c.Title))
+	for i, choice := range choices {
+		items[i] = choice
+		natural = max(natural, ansi.StringWidth(choice.Title))
 	}
 
-	l := list.New(items, itemDelegate{}, 0, 0) // real size arrives via WindowSizeMsg
+	l := list.New(items, choiceDelegate{}, 0, 0) // real size arrives via WindowSizeMsg
 	l.Title = title
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
@@ -57,10 +64,10 @@ func newModel(title string, choices []Choice) model {
 	}
 
 	m := model{
-		list:       l,
-		choice:     -1,
-		naturalCmd: natural,
-		idxWidth:   len(strconv.Itoa(len(choices))),
+		list:         l,
+		choice:       -1,
+		naturalTitle: natural,
+		idxWidth:     len(strconv.Itoa(len(choices))),
 	}
 	m.updateStyles(true)
 	return m
@@ -104,61 +111,62 @@ func Pick(title string, choices []Choice) (int, error) {
 }
 
 type styles struct {
-	title        lipgloss.Style
-	item         lipgloss.Style
-	selectedItem lipgloss.Style
-	pagination   lipgloss.Style
-	help         lipgloss.Style
+	title          lipgloss.Style
+	choice         lipgloss.Style
+	selectedChoice lipgloss.Style
+	pagination     lipgloss.Style
+	help           lipgloss.Style
 }
 
 func newStyles(darkBG bool) styles {
 	var s styles
 	s.title = lipgloss.NewStyle().MarginLeft(2)
-	s.item = lipgloss.NewStyle().PaddingLeft(4)
-	s.selectedItem = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
+	s.choice = lipgloss.NewStyle().PaddingLeft(4)
+	s.selectedChoice = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
 	s.pagination = list.DefaultStyles(darkBG).PaginationStyle.PaddingLeft(4)
 	s.help = list.DefaultStyles(darkBG).HelpStyle.PaddingLeft(4)
 	return s
 }
 
-type itemDelegate struct {
-	styles   styles // by value: no aliasing, no nil deref
-	cmdWidth int    // padded width of the command column, 0 = unaligned
-	idxWidth int    // digits in the largest row number
+type choiceDelegate struct {
+	styles     styles // by value: no aliasing, no nil deref
+	titleWidth int    // padded width of the title column, 0 = unaligned
+	idxWidth   int    // digits in the largest row number
 }
 
-func (d itemDelegate) Height() int                             { return 1 }
-func (d itemDelegate) Spacing() int                            { return 0 }
-func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d choiceDelegate) Height() int                             { return 1 }
+func (d choiceDelegate) Spacing() int                            { return 0 }
+func (d choiceDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
-func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	c, ok := listItem.(Choice)
+// Render draws one Choice. item is the library's interface value; everything
+// past the assertion is ours and named accordingly.
+func (d choiceDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	choice, ok := item.(Choice)
 	if !ok || m.Width() <= 0 {
 		return // no size yet; first frame before WindowSizeMsg
 	}
 
 	// Truncate before padding: Width() wraps content that overflows.
-	cmd := c.Title
-	if d.cmdWidth > 0 {
-		cmd = lipgloss.NewStyle().Width(d.cmdWidth).
-			Render(ansi.Truncate(cmd, d.cmdWidth, "…"))
+	title := choice.Title
+	if d.titleWidth > 0 {
+		title = lipgloss.NewStyle().Width(d.titleWidth).
+			Render(ansi.Truncate(title, d.titleWidth, "…"))
 	}
 
-	str := fmt.Sprintf("%*d. %s  %s", d.idxWidth, index+1, cmd, c.Desc)
+	row := fmt.Sprintf("%*d. %s  %s", d.idxWidth, index+1, title, choice.Desc)
 
 	// Clamp to the list width so the row can never wrap and break Height()==1.
-	if avail := m.Width() - d.styles.item.GetPaddingLeft() - d.styles.item.GetPaddingRight(); avail > 0 {
-		str = ansi.Truncate(str, avail, "…")
+	if avail := m.Width() - d.styles.choice.GetPaddingLeft() - d.styles.choice.GetPaddingRight(); avail > 0 {
+		row = ansi.Truncate(row, avail, "…")
 	}
 
-	fn := d.styles.item.Render
 	if index == m.Index() {
-		fn = func(s ...string) string {
-			return d.styles.selectedItem.Render("> " + strings.Join(s, " "))
-		}
+		row = d.styles.selectedChoice.Render("> " + row)
+	} else {
+		row = d.styles.choice.Render(row)
 	}
 
-	fmt.Fprint(w, fn(str))
+	fmt.Fprint(w, row)
 }
 
 type model struct {
@@ -166,7 +174,7 @@ type model struct {
 	choice        int
 	styles        styles
 	width, height int
-	naturalCmd    int // widest Title across all choices, in display cells
+	naturalTitle  int // widest Title across all choices, in display cells
 	idxWidth      int
 }
 
@@ -186,33 +194,26 @@ func (m *model) resize() {
 	// restyling frame() can never silently break this.
 	chrome := lipgloss.Height(m.frame()) - lipgloss.Height(m.list.View())
 
-	// Reserve the row we were invoked from and the row cmd prints on exit, so
-	// the picker never scrolls the user's prompt off screen.
-	const reserved = 2
+	avail := m.height - chrome - reservedRows
 
-	avail := m.height - chrome - reserved
-
-	// Shed chrome rather than overflow. Help costs 6 rows of list chrome,
-	// pagination 4, neither 2. Keep each only while at least minVisible
-	// results still fit underneath it, otherwise the decoration crowds out
-	// the thing it decorates.
-	const minVisible = 3
-	m.list.SetShowHelp(avail-6 >= minVisible)
-	m.list.SetShowPagination(avail-4 >= minVisible)
+	// Shed chrome rather than overflow: keep a decoration only while enough
+	// choices still fit underneath it, or it crowds out what it decorates.
+	m.list.SetShowHelp(avail-helpRows >= minVisible)
+	m.list.SetShowPagination(avail-paginationRows >= minVisible)
 
 	avail = min(avail, maxListHeight)
 	avail = max(avail, 1)
 	m.list.SetHeight(avail)
 
-	// Command column gets at most half the width.
-	cmdWidth := 0
+	// The title column gets at most half the width.
+	titleWidth := 0
 	if m.width > 0 {
-		cmdWidth = min(m.naturalCmd, m.width/2)
+		titleWidth = min(m.naturalTitle, m.width/2)
 	}
-	m.list.SetDelegate(itemDelegate{
-		styles:   m.styles,
-		cmdWidth: cmdWidth,
-		idxWidth: m.idxWidth,
+	m.list.SetDelegate(choiceDelegate{
+		styles:     m.styles,
+		titleWidth: titleWidth,
+		idxWidth:   m.idxWidth,
 	})
 }
 
@@ -228,7 +229,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		switch keypress := msg.String(); keypress {
+		switch msg.String() {
 		case "q", "esc", "ctrl+c":
 			return m, tea.Quit
 

@@ -40,7 +40,7 @@ func TestFrameFitsTerminal(t *testing.T) {
 	}
 }
 
-// itemDelegate.Height reports 1, which is a contract with bubbles/list: it
+// choiceDelegate.Height reports 1, which is a contract with bubbles/list: it
 // allocates exactly one row per item and derives pagination and cursor
 // position from that. A row wider than the terminal makes the *terminal* wrap
 // it to two lines, breaking the contract at display time.
