@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"wut/internal/seed"
@@ -21,9 +22,10 @@ import (
 )
 
 type Result struct {
-	Desc  string
-	Cmd   string
-	Score int
+	Desc     string
+	Cmd      string
+	Score    int
+	FromUser bool
 }
 
 type Query struct {
@@ -38,6 +40,7 @@ type snippetSource struct {
 	fsys  fs.FS
 	path  string // path within fsys, which is not a path on disk for seed files
 	label string // how to name this file in an error message
+	user  bool   // from ~/.wut rather than the shipped seed set
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -162,6 +165,10 @@ func searchCoordinator(query Query) error {
 		return nil
 	}
 
+	rankResults(finalResults)
+
+	// Built from the ranked slice, and read back by index at the bottom of this
+	// function: the two slices have to stay in the same order.
 	choices := make([]ui.Choice, len(finalResults))
 	for i, r := range finalResults {
 		choices[i] = ui.Choice{Title: r.Cmd, Desc: r.Desc}
@@ -190,11 +197,36 @@ func searchCoordinator(query Query) error {
 	return nil
 }
 
+// rankResults orders the picker: the user's own snippets first, then by score,
+// then by text so that the same query gives the same order every run.
+//
+// Precedence is a sort key rather than a score bonus. A bonus large enough to
+// outrank seed today is a number that quietly stops being large enough if the
+// scoring in scanChunk changes; a comparator branch cannot be outscored.
+func rankResults(results []Result) {
+	sort.Slice(results, func(i, j int) bool {
+		a, b := results[i], results[j]
+
+		switch {
+		case a.FromUser != b.FromUser:
+			return a.FromUser // your snippets outrank the shipped set outright
+		case a.Score != b.Score:
+			return a.Score > b.Score
+		case a.Cmd != b.Cmd:
+			return a.Cmd < b.Cmd
+		default:
+			// sort.Slice is not stable and the results arrive in goroutine
+			// order, so ties need a tiebreak that does not move between runs.
+			return a.Desc < b.Desc
+		}
+	})
+}
+
 // listFiles returns the seed snippets shipped in the binary, followed by every
 // *.txt under ~/.wut. The seed set is always searched, so a user who has not
 // created ~/.wut yet still gets results rather than an error.
 func listFiles() ([]snippetSource, error) {
-	files, err := collectTxt(seed.FS, func(p string) string { return "seed/" + p })
+	files, err := collectTxt(seed.FS, false, func(p string) string { return "seed/" + p })
 	if err != nil {
 		return nil, fmt.Errorf("reading embedded seed snippets: %w", err)
 	}
@@ -206,7 +238,7 @@ func listFiles() ([]snippetSource, error) {
 
 	dir := filepath.Join(home, ".wut")
 
-	userFiles, err := collectTxt(os.DirFS(dir), func(p string) string {
+	userFiles, err := collectTxt(os.DirFS(dir), true, func(p string) string {
 		return filepath.Join(dir, p)
 	})
 
@@ -220,8 +252,9 @@ func listFiles() ([]snippetSource, error) {
 }
 
 // collectTxt walks fsys and returns every *.txt in it, labelled for error
-// messages by label, which receives the path within fsys.
-func collectTxt(fsys fs.FS, label func(string) string) ([]snippetSource, error) {
+// messages by label, which receives the path within fsys. user marks the
+// results as the caller's own snippets rather than the shipped seed set.
+func collectTxt(fsys fs.FS, user bool, label func(string) string) ([]snippetSource, error) {
 	var found []snippetSource
 
 	err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
@@ -231,7 +264,7 @@ func collectTxt(fsys fs.FS, label func(string) string) ([]snippetSource, error) 
 		if d.IsDir() || !strings.HasSuffix(strings.ToLower(p), ".txt") {
 			return nil
 		}
-		found = append(found, snippetSource{fsys: fsys, path: p, label: label(p)})
+		found = append(found, snippetSource{fsys: fsys, path: p, label: label(p), user: user})
 		return nil
 	})
 
@@ -282,6 +315,9 @@ func scanFile(src snippetSource, query Query, ch chan<- Result) error {
 		matches := scanChunk(query, scanner.Text())
 
 		for _, v := range matches {
+			// The one place that holds both the results and the file they came
+			// from. scanChunk is about text, not where the text lives.
+			v.FromUser = src.user
 			ch <- v
 		}
 
