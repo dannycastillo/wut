@@ -52,10 +52,8 @@ func reversed(frame string) []int {
 	return out
 }
 
-// reverseWidth returns how many display cells of a line are painted in reverse
-// video. That is the bar's width, which is not the line's: JoinVertical pads
-// every section out to the widest one with ordinary spaces, so measuring the
-// line would measure the chrome instead.
+// reverseWidth returns the bar's width, which is not the line's: JoinVertical
+// pads every section out to the widest with ordinary spaces.
 func reverseWidth(line string) int {
 	const (
 		on  = "\x1b[7m"
@@ -91,43 +89,54 @@ func TestFrameFitsTerminal(t *testing.T) {
 	}
 }
 
-// choiceDelegate.Height reports 1, which is a contract with bubbles/list: it
-// allocates exactly one row per item and derives pagination and cursor
-// position from that. A row wider than the terminal makes the *terminal* wrap
-// it to two lines, breaking the contract at display time.
-//
-// Width is the assertion that matters here, not height: lipgloss never wraps,
-// so an over-wide row shows up as an over-wide frame, never as a taller one.
+// Every width, not a sample: the help overflows only in a band, and three
+// sampled widths walked straight past it.
 func TestRowsNeverExceedTerminalWidth(t *testing.T) {
 	long := strings.Repeat("du -sh * | sort -rh | head -n 10 ", 8)
 
-	wide := make([]Choice, 8)
-	for i := range wide {
-		wide[i] = Choice{Title: long, Desc: long}
+	// The bar is sized from the widest description, so mixed lengths exercise
+	// padding that a uniform fixture never reaches.
+	fixtures := map[string][]Choice{
+		"uniform long": {{Title: long, Desc: long}, {Title: long, Desc: long}},
+		"realistic": {
+			{Title: "docker exec -it CONTAINER bash", Desc: "# open a shell in a running container"},
+			{Title: "docker logs -f CONTAINER", Desc: "# follow container logs"},
+			{Title: "docker run -it --rm IMAGE bash", Desc: "# run a container interactively and remove it on exit"},
+			{Title: "ls", Desc: "# short"},
+		},
+		"identical": sample(20),
 	}
 
-	for _, w := range []int{40, 80, 120} {
-		m := size(t, newModel(wide), w, 24)
+	for name, choices := range fixtures {
+		for w := 10; w <= 120; w++ {
+			m := size(t, newModel(choices), w, 24)
 
-		if got := lipgloss.Width(m.frame()); got > w {
-			t.Errorf("width %d: frame rendered %d columns wide", w, got)
-		}
-		for i, line := range strings.Split(m.frame(), "\n") {
-			if got := lipgloss.Width(line); got > w {
-				t.Errorf("width %d: line %d is %d columns", w, i, got)
+			for i, line := range strings.Split(m.frame(), "\n") {
+				if got := lipgloss.Width(line); got > w {
+					t.Errorf("%s at width %d: line %d is %d columns:\n%q",
+						name, w, i, got, ansi.Strip(line))
+				}
 			}
 		}
 	}
 }
 
-// Chrome is shed as the terminal shrinks rather than overflowing, and results
-// stay visible at every size.
-//
-// The decoration assertions are not decoration themselves: helpRows and
-// paginationRows are measured costs, and overstating them sheds silently — the
-// frame still fits and results are still visible, so nothing else here would
-// notice. The two heights that pin them are 8, where pagination is the last
-// thing that fits, and 10, where help is.
+// MaxWidth alone would fit the line by chopping it. Sizing the help to the room
+// it has lets bubbles drop a binding cleanly instead.
+func TestHelpIsSizedToTheRoomItHas(t *testing.T) {
+	for _, w := range []int{40, 60, 80} {
+		m := size(t, newModel(sample(20)), w, 24)
+
+		if got, want := m.list.Help.Width(), w-rowPad; got != want {
+			t.Errorf("width %d: help sized to %d, want %d — the terminal less the padding HelpStyle adds",
+				w, got, want)
+		}
+	}
+}
+
+// Overstating helpRows or paginationRows sheds silently, so the heights here
+// are the two that pin them: 8, where pagination is the last thing that fits,
+// and 10, where help is.
 func TestChromeShedsBeforeResults(t *testing.T) {
 	for _, tc := range []struct {
 		height                 int
@@ -152,9 +161,7 @@ func TestChromeShedsBeforeResults(t *testing.T) {
 			t.Errorf("height %d: pagination shown = %v, want %v:\n%s", tc.height, got, tc.wantPageDots, frame)
 		}
 
-		// HelpStyle's top padding is a rendered row, and one of the two that
-		// helpRows pays for. Trimming it to PaddingLeft would cost a row that
-		// the constant still charges for.
+		// HelpStyle's top padding is one of the two rows helpRows pays for.
 		if tc.wantHelp {
 			lines := strings.Split(frame, "\n")
 			for i, line := range lines {
@@ -170,10 +177,8 @@ func TestChromeShedsBeforeResults(t *testing.T) {
 	}
 }
 
-// The picker shows results and nothing else. Dropping the l.Title assignment
-// is not what achieves that: bubbles/list defaults to showing a title and
-// defaults the string to "List", so without SetShowTitle(false) the header
-// comes back reading "List" rather than disappearing.
+// Without SetShowTitle(false) the header comes back reading "List", which is
+// bubbles' default rather than anything this package set.
 func TestFrameOpensOnAResult(t *testing.T) {
 	m := size(t, newModel(sample(5)), 80, 24)
 	lines := strings.Split(m.frame(), "\n")
@@ -225,9 +230,8 @@ func TestHoveredRowIsAReverseBar(t *testing.T) {
 		t.Error("the ANSI-170 foreground is still being painted")
 	}
 
-	// The bar spans the widest row: the title column, the gap, and the widest
-	// description, plus the row padding. Asserting a bound rather than the
-	// value would also pass for a bar that hugs each row's own text.
+	// Equality, not a bound: a bound would also pass for a bar that hugs each
+	// row's own text.
 	c := sample(1)[0]
 	pad := newStyles().choice.GetHorizontalPadding()
 	want := pad + ansi.StringWidth(c.Title) + descGap + ansi.StringWidth(c.Desc)
