@@ -15,7 +15,7 @@ up in `wut --help` as a documented option that does nothing.
 
 ## Notes
 - The flag is `rootCmd.Flags().BoolP("toggle", "t", false, ...)` at
-  `cmd/root.go:96`, inside `init()`. Nothing reads it — `grep -rn toggle
+  `cmd/root.go:108`, inside `init()`. Nothing reads it — `grep -rn toggle
   --include="*.go" .` returns that one line.
 - The commented-out `PersistentFlags` example above it is scaffolding too.
 - Headers are at the top of `cmd/root.go` and `main.go`. `LICENSE` is empty
