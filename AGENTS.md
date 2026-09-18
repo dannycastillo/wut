@@ -153,3 +153,112 @@ code already tells you that.
 To change course, write a new ADR carrying `**Supersedes:** ADR-NN`, and add a
 `**Superseded by:** ADR-MM` line to the old one's status block. Adding that
 back-pointer is the only edit an accepted ADR ever takes.
+
+## Todo
+
+Work that needs doing lives in `todo/`, one file per item. `ls todo/` is the
+backlog — if a file is there, the work is open.
+
+### Filename is the branch name
+
+`todo/<prefix>-<short-kebab>.md` → branch `<prefix>/<short-kebab>`.
+
+```
+todo/feat-pane-resize.md    →  git switch -c feat/pane-resize
+todo/fix-empty-desc-line.md →  git switch -c fix/empty-desc-line
+```
+
+Same four prefixes as commits. No numbers: todos have no order, and two agents
+filing at once would race for the same one.
+
+### Shape
+
+```markdown
+# <prefix>: <short title>
+
+- **Priority:** high | medium | low
+- **Branch:** <prefix>/<short-kebab>
+- **Touches:** comma-separated paths, or `new` / `unknown`
+- **Blocked by:** other todo filenames, or `—`
+
+## Goal
+One sentence: what is true when this is done.
+
+## Why
+The reason it's worth doing. One or two lines.
+
+## Notes
+Constraints, file paths, function names, gotchas, ADRs that apply.
+Everything needed to start without asking a question.
+
+## Done when
+- [ ] verifiable statement
+- [ ] verifiable statement
+- [ ] `go build ./...` and `go vet ./...` pass
+```
+
+### Priority
+
+| Value    | Test                                                              |
+| -------- | ----------------------------------------------------------------- |
+| `high`   | the tool is wrong in a way a user hits, or this blocks other work  |
+| `medium` | real work, no urgency                                              |
+| `low`    | worth doing; fine if it never happens                              |
+
+Priority is relative to what's in `todo/` right now, not absolute. If most of
+the backlog is `high`, none of it is — re-rank rather than inflate.
+
+```sh
+grep '\*\*Priority:\*\*' todo/*.md
+```
+
+An agent filing a todo proposes a priority. Danny's edit is final, and priority
+is the **only** field worth editing in place — unlike an ADR, a todo is a plan,
+not a record. Rewrite it freely while it's still open.
+
+Priority orders the queue; it does not override **Blocked by**. A blocked
+`high` waits for the thing blocking it, whatever that thing's priority is.
+
+### Touches, and why it's the precise one
+
+`Touches` is what makes parallel work possible. Before dispatching two agents:
+
+```sh
+grep '\*\*Touches:\*\*' todo/*.md
+```
+
+Overlapping paths means run them one after the other, not side by side. If you
+discover mid-task that you must touch a file the todo didn't list, **say so** —
+another agent may be in that file right now.
+
+**Done when** is the contract. Finish all of it; don't do more than it asks. If
+you spot adjacent work, file a todo for it rather than folding it in.
+
+### Picking one up
+
+1. Read the todo file, and read in full any ADR it references.
+2. Branch using the name in the file.
+3. Do the work.
+4. `git rm` the todo file as part of the final commit on the branch.
+5. Stop for approval, per the git workflow above.
+
+Deleting the file on the branch means merging the work and clearing the backlog
+are the same event — there's no second step to forget, and no status field that
+two branches can conflict over. What got done is still recoverable:
+
+```sh
+git log --diff-filter=D --oneline -- todo/
+```
+
+If a todo's Notes contradict the code — it was written before the code moved —
+say so before working around it. A stale todo is worth a sentence, not a silent
+reinterpretation.
+
+### Filing one
+
+File a todo when you notice work that's real but out of scope for what you're
+doing. Don't file what you're about to do anyway, and don't file a vague
+"improve X" — if you can't write the **Done when**, you don't understand it
+well enough to hand off.
+
+Filing is not prioritizing. Danny decides what gets picked up.
