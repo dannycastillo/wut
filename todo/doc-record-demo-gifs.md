@@ -3,7 +3,7 @@
 - **Priority:** medium
 - **Branch:** doc/record-demo-gifs
 - **Touches:** demo/*.tape, demo/*.gif, .gitignore
-- **Blocked by:** feat-slim-the-picker
+- **Blocked by:** feat-help-above-results
 
 ## Goal
 `demo/` holds a short gif of the tool in use plus the script that produced it,
