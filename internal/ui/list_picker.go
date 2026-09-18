@@ -67,6 +67,11 @@ func newModel(title string, choices []Choice) model {
 }
 
 func Pick(title string, choices []Choice) (int, error) {
+	// Never open an empty picker: there is no index it could honestly return.
+	if len(choices) == 0 {
+		return -1, ErrAborted
+	}
+
 	m := newModel(title, choices)
 
 	final, err := tea.NewProgram(m, tea.WithOutput(os.Stderr)).Run()
@@ -82,8 +87,14 @@ func Pick(title string, choices []Choice) (int, error) {
 	// Bubble Tea leaves its final frame in the scrollback. Walk back up to the
 	// first row it painted and erase from there down. CPL is relative, so it
 	// stays correct even if the terminal scrolled while the picker was open.
+	//
+	// The leading \r is not cosmetic: rows are padded to the full list width,
+	// so the last one can leave the cursor in the pending-wrap state — still on
+	// row N, but the next glyph lands on N+1. Terminals disagree on whether CPL
+	// then counts from N or N+1, which cost one row (the user's command line)
+	// in Terminal.app. \r resolves the ambiguity before any vertical movement.
 	if n := lipgloss.Height(fm.frame()) - 1; n > 0 {
-		fmt.Fprintf(os.Stderr, "\x1b[%dF\x1b[0J", n)
+		fmt.Fprintf(os.Stderr, "\r\x1b[%dF\x1b[0J", n)
 	}
 
 	if fm.choice < 0 {
@@ -98,7 +109,6 @@ type styles struct {
 	selectedItem lipgloss.Style
 	pagination   lipgloss.Style
 	help         lipgloss.Style
-	quitText     lipgloss.Style
 }
 
 func newStyles(darkBG bool) styles {
@@ -108,7 +118,6 @@ func newStyles(darkBG bool) styles {
 	s.selectedItem = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
 	s.pagination = list.DefaultStyles(darkBG).PaginationStyle.PaddingLeft(4)
 	s.help = list.DefaultStyles(darkBG).HelpStyle.PaddingLeft(4)
-	s.quitText = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 	return s
 }
 
@@ -156,7 +165,6 @@ type model struct {
 	list          list.Model
 	choice        int
 	styles        styles
-	quitting      bool
 	width, height int
 	naturalCmd    int // widest Title across all choices, in display cells
 	idxWidth      int
@@ -222,10 +230,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch keypress := msg.String(); keypress {
 		case "q", "esc", "ctrl+c":
-			m.quitting = true
 			return m, tea.Quit
 
 		case "enter":
+			// SelectedItem is nil on an empty list, where GlobalIndex would
+			// still report 0 and hand the caller an index into nothing.
+			if m.list.SelectedItem() == nil {
+				return m, nil
+			}
 			m.choice = m.list.GlobalIndex()
 			return m, tea.Quit
 		}
@@ -242,9 +254,11 @@ func (m model) frame() string {
 	return "\n" + m.list.View()
 }
 
+// View always paints the full frame, including after tea.Quit. An empty final
+// view would zero the renderer's cell buffer, and its shutdown path then runs
+// MoveTo(0, cellbuf.Height()-1) — MoveTo(0, -1) — leaving the cursor somewhere
+// terminal-dependent. Keeping a real height means shutdown lands on the frame's
+// true bottom row, which is what Pick's erase counts back from.
 func (m model) View() tea.View {
-	if m.choice >= 0 || m.quitting {
-		return tea.NewView("")
-	}
 	return tea.NewView(m.frame())
 }

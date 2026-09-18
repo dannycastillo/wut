@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -102,17 +103,53 @@ func TestAbortKeysLeaveNoChoice(t *testing.T) {
 	} {
 		m := size(t, newModel("Results", sample(5)), 80, 24)
 
-		next, _ := m.Update(k)
+		next, cmd := m.Update(k)
 		m = next.(model)
 
-		if !m.quitting {
-			t.Errorf("key %q: quitting not set", k.String())
+		if cmd == nil {
+			t.Fatalf("key %q: no command returned, want tea.Quit", k.String())
+		}
+		if _, ok := cmd().(tea.QuitMsg); !ok {
+			t.Errorf("key %q: returned %T, want tea.QuitMsg", k.String(), cmd())
 		}
 		if m.choice != -1 {
 			t.Errorf("key %q: choice = %d, want -1", k.String(), m.choice)
 		}
-		if m.View().Content != "" {
-			t.Errorf("key %q: view not cleared on quit", k.String())
+		// The frame must keep a real height through quit. An empty final view
+		// zeroes the renderer's cell buffer, and its shutdown then runs
+		// MoveTo(0, -1), leaving the cursor terminal-dependent — which cost a
+		// row of the user's scrollback.
+		if got := lipgloss.Height(m.View().Content); got < 2 {
+			t.Errorf("key %q: frame collapsed to %d rows on quit; shutdown needs a real height", k.String(), got)
 		}
+	}
+}
+
+// The panic this guards against was in cmd: an empty list still reports
+// GlobalIndex() == 0, so enter handed the caller an index into an empty slice.
+func TestEmptyChoicesNeverSelects(t *testing.T) {
+	m := size(t, newModel("Results", nil), 80, 24)
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(model)
+
+	if m.choice != -1 {
+		t.Errorf("choice = %d on an empty list, want -1", m.choice)
+	}
+	if cmd != nil {
+		if _, quit := cmd().(tea.QuitMsg); quit {
+			t.Error("enter quit the picker with nothing selected")
+		}
+	}
+}
+
+func TestPickRefusesEmpty(t *testing.T) {
+	idx, err := Pick("Results", nil)
+
+	if !errors.Is(err, ErrAborted) {
+		t.Errorf("err = %v, want ErrAborted", err)
+	}
+	if idx != -1 {
+		t.Errorf("idx = %d, want -1", idx)
 	}
 }

@@ -140,6 +140,13 @@ func searchCoordinator(query Query) error {
 		fmt.Fprintln(os.Stderr, "warning:", e) // some worked: degrade
 	}
 
+	// Finding nothing is a normal outcome of a search, not a failure: report it
+	// and exit 0. Going further would open a picker with no index to return.
+	if len(finalResults) == 0 {
+		fmt.Fprintf(os.Stderr, "no matches for %q\n", query.Joined)
+		return nil
+	}
+
 	choices := make([]ui.Choice, len(finalResults))
 	for i, r := range finalResults {
 		choices[i] = ui.Choice{Title: r.Cmd, Desc: r.Desc}
@@ -161,7 +168,9 @@ func searchCoordinator(query Query) error {
 		return fmt.Errorf("clipboard writeall: %w", err)
 	}
 
-	fmt.Printf("\n🚀 Copied to clipboard: %s\n", selected.Cmd)
+	// No leading newline: the erase leaves the cursor on the frame's blank
+	// first row, so this lands directly under the invoking command line.
+	fmt.Printf("🚀 Copied to clipboard: %s\n", selected.Cmd)
 
 	return nil
 }
