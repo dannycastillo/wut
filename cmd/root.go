@@ -83,7 +83,7 @@ func run(query search.Query) error {
 		choices[i] = ui.Choice{Title: r.Cmd, Desc: r.Desc}
 	}
 
-	idx, err := ui.Pick("Results", choices)
+	idx, err := ui.Pick(choices)
 	if err != nil {
 		if errors.Is(err, ui.ErrAborted) {
 			return nil // user quit; exit 0
