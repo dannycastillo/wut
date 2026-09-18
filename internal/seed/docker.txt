@@ -1,0 +1,53 @@
+# view containers
+docker ps
+
+# view all containers including stopped
+docker ps -a
+
+# view images
+docker images
+
+# run a container interactively and remove it on exit
+docker run -it --rm IMAGE bash
+
+# open a shell in a running container
+docker exec -it CONTAINER bash
+
+# follow container logs
+docker logs -f CONTAINER
+
+# stop a container
+docker stop CONTAINER
+
+# delete containers
+docker rm CONTAINER_1 CONTAINER_2
+
+# delete images
+docker rmi IMAGE_1 IMAGE_2
+
+# build image from current directory
+docker build -t IMAGE_NAME .
+
+# docker disk usage
+docker system df
+
+# delete buildkit cache (--all --force)
+docker builder prune -af
+
+# delete docker images (--all --force)
+docker image prune -af
+
+# delete single docker image
+docker image prune
+
+# delete all unused containers, networks, images, and cache
+docker system prune -af
+
+# list volumes
+docker volume ls
+
+# start compose services in background
+docker compose up -d
+
+# stop and remove compose services
+docker compose down

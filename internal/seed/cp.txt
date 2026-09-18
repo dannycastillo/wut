@@ -1,0 +1,17 @@
+# Copy a file
+cp FILE COPY
+
+# Copy a file into a directory
+cp FILE DIR/
+
+# Copy a directory recursively
+cp -r SRC_DIR DEST_DIR
+
+# Copy and preserve permissions and timestamps
+cp -p FILE COPY
+
+# Prompt before overwriting
+cp -i FILE DIR/
+
+# Show each file as it is copied
+cp -v FILE DIR/

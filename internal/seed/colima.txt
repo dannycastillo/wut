@@ -1,0 +1,23 @@
+# check status
+colima status
+
+# start
+colima start
+
+# stop
+colima stop
+
+# restart
+colima restart
+
+# start with custom cpu, memory (GB), and disk (GB)
+colima start --cpu CPUS --memory MEMORY_GB --disk DISK_GB
+
+# open a shell in the colima vm
+colima ssh
+
+# tell apple file system (APFS) that disk space has been freed up (e.g. after docker prune)
+colima ssh -- sudo fstrim -av
+
+# delete the colima vm
+colima delete

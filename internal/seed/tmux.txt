@@ -1,0 +1,38 @@
+# Start named session
+tmux new -s SESSION_NAME
+
+# List active sessions
+tmux ls
+
+# Attach to specific session
+tmux attach -t SESSION_NAME
+
+# Kill specific session
+tmux kill-session -t SESSION_NAME
+
+# Kill ALL sessions
+tmux kill-server
+
+# Rename current session
+Ctrl + b then $
+
+# Detach from current session
+Ctrl + b then d
+
+# Split pane vertically (side by side)
+Ctrl + b then %
+
+# Split pane horizontally (top and bottom)
+Ctrl + b then "
+
+# Move between panes
+Ctrl + b then arrow key
+
+# Close current pane
+Ctrl + b then x
+
+# Create new window
+Ctrl + b then c
+
+# Next or previous window
+Ctrl + b then n or p

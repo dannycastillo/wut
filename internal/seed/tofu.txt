@@ -1,0 +1,20 @@
+# initialize working directory
+tofu init
+
+# preview changes
+tofu plan
+
+# apply changes
+tofu apply
+
+# destroy managed infrastructure
+tofu destroy
+
+# format config files
+tofu fmt
+
+# validate config
+tofu validate
+
+# list resources in state
+tofu state list

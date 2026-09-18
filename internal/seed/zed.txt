@@ -1,0 +1,26 @@
+# open current directory in zed
+zed .
+
+# open a file in zed
+zed FILE
+
+# command palette
+cmd + shift + p
+
+# file finder
+cmd + p
+
+# search across project
+cmd + shift + f
+
+# toggle terminal panel
+ctrl + `
+
+# toggle left dock (project panel)
+cmd + b
+
+# go to line
+ctrl + g
+
+# open settings
+cmd + ,

@@ -1,0 +1,32 @@
+# initialize working directory
+terraform init
+
+# preview changes
+terraform plan
+
+# apply changes
+terraform apply
+
+# apply without confirmation prompt
+terraform apply -auto-approve
+
+# destroy managed infrastructure
+terraform destroy
+
+# format config files
+terraform fmt
+
+# validate config
+terraform validate
+
+# list resources in state
+terraform state list
+
+# show outputs
+terraform output
+
+# list workspaces
+terraform workspace list
+
+# select a workspace
+terraform workspace select WORKSPACE_NAME
