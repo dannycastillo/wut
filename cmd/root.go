@@ -4,44 +4,15 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
-	"sort"
-	"strings"
-	"sync"
-	"wut/internal/seed"
+	"wut/internal/search"
 	"wut/internal/ui"
 
 	"github.com/atotto/clipboard"
 	"github.com/spf13/cobra"
 )
-
-type Result struct {
-	Desc     string
-	Cmd      string
-	Score    int
-	FromUser bool
-}
-
-type Query struct {
-	Joined string
-	Split  []string
-}
-
-// snippetSource is one file of snippets. fs.FS is the common interface between
-// the seed set compiled into the binary and the user's files on disk, so
-// scanFile never needs to know which of the two it was handed.
-type snippetSource struct {
-	fsys  fs.FS
-	path  string // path within fsys, which is not a path on disk for seed files
-	label string // how to name this file in an error message
-	user  bool   // from ~/.wut rather than the shipped seed set
-}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -75,17 +46,7 @@ in shell environments.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		// 'args' captures all arbitrary positional arguments
-		for i := range args {
-			args[i] = strings.ToLower(args[i])
-		}
-
-		query := Query{
-			Joined: strings.Join(args, " "),
-			Split:  args,
-		}
-
-		return searchCoordinator(query)
+		return run(search.NewQuery(args))
 	},
 }
 
@@ -111,66 +72,29 @@ func init() {
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func searchCoordinator(query Query) error {
-	files, err := listFiles()
+// run turns a query into the thing the user asked for: the search itself is
+// internal/search's job, everything below is this command's.
+func run(query search.Query) error {
+	results, warnings, err := search.Find(query)
 	if err != nil {
 		return err
 	}
 
-	var wg sync.WaitGroup
-
-	wg.Add(len(files))
-
-	resultsChan := make(chan Result)
-	errsChan := make(chan error, len(files))
-
-	for _, v := range files {
-		go func() {
-			defer wg.Done()
-			if err := scanFile(v, query, resultsChan); err != nil {
-				errsChan <- err
-			}
-		}()
-	}
-
-	// 3. Close the channel once all children are completely done
-	go func() {
-		wg.Wait()
-		close(resultsChan)
-		close(errsChan)
-	}()
-
-	var finalResults []Result
-	for r := range resultsChan {
-		finalResults = append(finalResults, r)
-	}
-
-	var scanErrs []error
-	for e := range errsChan {
-		scanErrs = append(scanErrs, e)
-	}
-
-	if len(scanErrs) == len(files) {
-		return errors.Join(scanErrs...) // nothing worked: fail
-	}
-
-	for _, e := range scanErrs {
+	for _, e := range warnings {
 		fmt.Fprintln(os.Stderr, "warning:", e) // some worked: degrade
 	}
 
 	// Finding nothing is a normal outcome of a search, not a failure: report it
 	// and exit 0. Going further would open a picker with no index to return.
-	if len(finalResults) == 0 {
+	if len(results) == 0 {
 		fmt.Fprintf(os.Stderr, "no matches for %q\n", query.Joined)
 		return nil
 	}
 
-	rankResults(finalResults)
-
 	// Built from the ranked slice, and read back by index at the bottom of this
 	// function: the two slices have to stay in the same order.
-	choices := make([]ui.Choice, len(finalResults))
-	for i, r := range finalResults {
+	choices := make([]ui.Choice, len(results))
+	for i, r := range results {
 		choices[i] = ui.Choice{Title: r.Cmd, Desc: r.Desc}
 	}
 
@@ -182,7 +106,7 @@ func searchCoordinator(query Query) error {
 		return fmt.Errorf("picker: %w", err)
 	}
 
-	selected := finalResults[idx]
+	selected := results[idx]
 
 	err = clipboard.WriteAll(selected.Cmd)
 
@@ -195,200 +119,4 @@ func searchCoordinator(query Query) error {
 	fmt.Printf("🚀 Copied to clipboard: %s\n", selected.Cmd)
 
 	return nil
-}
-
-// rankResults orders the picker: the user's own snippets first, then by score,
-// then by text so that the same query gives the same order every run.
-//
-// Precedence is a sort key rather than a score bonus. A bonus large enough to
-// outrank seed today is a number that quietly stops being large enough if the
-// scoring in scanChunk changes; a comparator branch cannot be outscored.
-func rankResults(results []Result) {
-	sort.Slice(results, func(i, j int) bool {
-		a, b := results[i], results[j]
-
-		switch {
-		case a.FromUser != b.FromUser:
-			return a.FromUser // your snippets outrank the shipped set outright
-		case a.Score != b.Score:
-			return a.Score > b.Score
-		case a.Cmd != b.Cmd:
-			return a.Cmd < b.Cmd
-		default:
-			// sort.Slice is not stable and the results arrive in goroutine
-			// order, so ties need a tiebreak that does not move between runs.
-			return a.Desc < b.Desc
-		}
-	})
-}
-
-// listFiles returns the seed snippets shipped in the binary, followed by every
-// *.txt under ~/.wut. The seed set is always searched, so a user who has not
-// created ~/.wut yet still gets results rather than an error.
-func listFiles() ([]snippetSource, error) {
-	files, err := collectTxt(seed.FS, false, func(p string) string { return "seed/" + p })
-	if err != nil {
-		return nil, fmt.Errorf("reading embedded seed snippets: %w", err)
-	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("locating home directory: %w", err)
-	}
-
-	dir := filepath.Join(home, ".wut")
-
-	userFiles, err := collectTxt(os.DirFS(dir), true, func(p string) string {
-		return filepath.Join(dir, p)
-	})
-
-	// No ~/.wut is the ordinary state of a fresh install, not a failure: the
-	// seed set still answers the query. Any other error is worth reporting.
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("reading %s: %w", dir, err)
-	}
-
-	return append(files, userFiles...), nil
-}
-
-// collectTxt walks fsys and returns every *.txt in it, labelled for error
-// messages by label, which receives the path within fsys. user marks the
-// results as the caller's own snippets rather than the shipped seed set.
-func collectTxt(fsys fs.FS, user bool, label func(string) string) ([]snippetSource, error) {
-	var found []snippetSource
-
-	err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(p), ".txt") {
-			return nil
-		}
-		found = append(found, snippetSource{fsys: fsys, path: p, label: label(p), user: user})
-		return nil
-	})
-
-	return found, err
-}
-
-func scanFile(src snippetSource, query Query, ch chan<- Result) error {
-
-	file, err := src.fsys.Open(src.path)
-
-	if err != nil {
-		// The error names src.path, which is relative to fsys and means nothing
-		// to a reader. Swap in the label; Op and Err are already the right words.
-		var pathErr *fs.PathError
-		if errors.As(err, &pathErr) {
-			pathErr.Path = src.label
-			return pathErr
-		}
-		return fmt.Errorf("%s: %w", src.label, err)
-	}
-
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	multiByteDelimiter := []byte("\n#")
-
-	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
-		if atEOF && len(data) == 0 {
-			return 0, nil, nil
-		}
-
-		if i := bytes.Index(data, multiByteDelimiter); i >= 0 {
-			// Move the read pointer past the chunk and the delimiter length
-			return i + 1, data[0:i], nil
-		}
-
-		if atEOF {
-			return len(data), data, nil
-		}
-
-		return 0, nil, nil
-	})
-
-	chunkNumber := 1
-	for scanner.Scan() {
-
-		matches := scanChunk(query, scanner.Text())
-
-		for _, v := range matches {
-			// The one place that holds both the results and the file they came
-			// from. scanChunk is about text, not where the text lives.
-			v.FromUser = src.user
-			ch <- v
-		}
-
-		chunkNumber++
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("reading %s: %w", src.label, err)
-	}
-
-	return nil
-}
-
-func scanChunk(query Query, chunk string) []Result {
-	var matches []Result
-
-	// Scoring System
-	// Direct Match = 1000
-	// Word Match = 500 + 5 per matching word
-
-	// Direct Match
-	if strings.Contains(chunk, query.Joined) {
-		score := 1000
-		matches = append(matches, buildMatch(chunk, score))
-	} else {
-		// Word Match
-		wordMatches := countMatches(strings.Fields(chunk), query.Split)
-
-		if wordMatches > 0 {
-			score := 500 + (wordMatches * 5)
-			matches = append(matches, buildMatch(chunk, score))
-		}
-	}
-
-	return matches
-}
-
-func countMatches(slice1, slice2 []string) int {
-	// Step 1: Populate a map with items from the first slice
-	seen := make(map[string]bool)
-	for _, item := range slice1 {
-		seen[item] = true
-	}
-
-	// Step 2: Loop through the second slice and count matches
-	matchCount := 0
-	for _, item := range slice2 {
-		if seen[item] {
-			matchCount++
-			// Optional: Delete the item if you only want to count unique matches
-			// delete(seen, item)
-		}
-	}
-
-	return matchCount
-}
-
-func buildMatch(chunk string, score int) Result {
-	result := Result{
-		Score: score,
-	}
-
-	lines := strings.Split(chunk, "\n")
-
-	for _, line := range lines {
-		if strings.HasPrefix(line, "#") {
-			result.Desc += line
-		} else {
-			result.Cmd += line
-		}
-	}
-
-	return result
 }
