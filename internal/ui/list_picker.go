@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -22,11 +21,28 @@ const (
 	reservedRows  = 2  // the invoking command line, and the line cmd prints on exit
 	minVisible    = 3  // keep a decoration only while this many choices fit under it
 
-	// What each decoration costs in list chrome, measured: bubbles/list floors
-	// at 7 rows with both, 5 with pagination only, 3 with neither.
-	helpRows       = 6
-	paginationRows = 4
+	// What each decoration costs in list chrome, measured: pagination is its
+	// line plus a separator row, help is its line plus the blank row from
+	// HelpStyle's top padding. helpRows is the cost of showing both, since help
+	// is the outer one — bubbles/list floors at 5 rows with both, 3 with
+	// pagination only, 1 with neither.
+	helpRows       = 4
+	paginationRows = 2
 )
+
+// The gap between the title column and the description: the string a row is
+// joined with, and the width resize measures. One constant so the two can't
+// drift apart.
+const (
+	descSep = "  "
+	descGap = len(descSep)
+)
+
+// The picker's left margin, in cells. Every line the picker paints takes it —
+// rows, pagination and help — so the whole frame sits on one column. bubbles'
+// own chrome defaults to 2, which is part of why newStyles writes those styles
+// out rather than taking the library's.
+const rowPad = 1
 
 // Choice is everything the picker needs to draw one row.
 type Choice struct {
@@ -38,16 +54,20 @@ func (c Choice) FilterValue() string { return c.Title + " " + c.Desc }
 
 // newModel builds the picker without running it, so its layout and key
 // handling are testable as pure functions.
-func newModel(title string, choices []Choice) model {
+func newModel(choices []Choice) model {
 	items := make([]list.Item, len(choices))
-	natural := 0
+	naturalTitle, naturalDesc := 0, 0
 	for i, choice := range choices {
 		items[i] = choice
-		natural = max(natural, ansi.StringWidth(choice.Title))
+		naturalTitle = max(naturalTitle, ansi.StringWidth(choice.Title))
+		naturalDesc = max(naturalDesc, ansi.StringWidth(choice.Desc))
 	}
 
 	l := list.New(items, choiceDelegate{}, 0, 0) // real size arrives via WindowSizeMsg
-	l.Title = title
+
+	// Not redundant with assigning no Title: list.New defaults to showTitle
+	// with Title "List", so without this the picker draws that word.
+	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 
@@ -66,20 +86,20 @@ func newModel(title string, choices []Choice) model {
 	m := model{
 		list:         l,
 		choice:       -1,
-		naturalTitle: natural,
-		idxWidth:     len(strconv.Itoa(len(choices))),
+		naturalTitle: naturalTitle,
+		naturalDesc:  naturalDesc,
 	}
-	m.updateStyles(true)
+	m.updateStyles()
 	return m
 }
 
-func Pick(title string, choices []Choice) (int, error) {
+func Pick(choices []Choice) (int, error) {
 	// Never open an empty picker: there is no index it could honestly return.
 	if len(choices) == 0 {
 		return -1, ErrAborted
 	}
 
-	m := newModel(title, choices)
+	m := newModel(choices)
 
 	final, err := tea.NewProgram(m, tea.WithOutput(os.Stderr)).Run()
 	if err != nil {
@@ -95,11 +115,11 @@ func Pick(title string, choices []Choice) (int, error) {
 	// first row it painted and erase from there down. CPL is relative, so it
 	// stays correct even if the terminal scrolled while the picker was open.
 	//
-	// The leading \r is not cosmetic: rows are padded to the full list width,
-	// so the last one can leave the cursor in the pending-wrap state — still on
-	// row N, but the next glyph lands on N+1. Terminals disagree on whether CPL
-	// then counts from N or N+1, which cost one row (the user's command line)
-	// in Terminal.app. \r resolves the ambiguity before any vertical movement.
+	// The leading \r is not cosmetic: a row padded to the full list width can
+	// leave the cursor in the pending-wrap state — still on row N, but the next
+	// glyph lands on N+1. Terminals disagree on whether CPL then counts from N
+	// or N+1, which cost one row (the user's command line) in Terminal.app. \r
+	// resolves the ambiguity before any vertical movement.
 	if n := lipgloss.Height(fm.frame()) - 1; n > 0 {
 		fmt.Fprintf(os.Stderr, "\r\x1b[%dF\x1b[0J", n)
 	}
@@ -111,27 +131,36 @@ func Pick(title string, choices []Choice) (int, error) {
 }
 
 type styles struct {
-	title          lipgloss.Style
 	choice         lipgloss.Style
 	selectedChoice lipgloss.Style
 	pagination     lipgloss.Style
 	help           lipgloss.Style
 }
 
-func newStyles(darkBG bool) styles {
+func newStyles() styles {
 	var s styles
-	s.title = lipgloss.NewStyle().MarginLeft(2)
-	s.choice = lipgloss.NewStyle().PaddingLeft(4)
-	s.selectedChoice = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	s.pagination = list.DefaultStyles(darkBG).PaginationStyle.PaddingLeft(4)
-	s.help = list.DefaultStyles(darkBG).HelpStyle.PaddingLeft(4)
+	s.choice = lipgloss.NewStyle().PaddingLeft(rowPad)
+
+	// Reverse borrows the terminal's own palette, so the hovered row is legible
+	// in any theme without this package choosing a color. Same padding as an
+	// unselected row — with the "> " cursor gone there is no column to reserve,
+	// and equal padding is what keeps every row's text on one column. The bar's
+	// width is set per-resize.
+	s.selectedChoice = lipgloss.NewStyle().PaddingLeft(rowPad).Reverse(true)
+
+	// Padding only. Written out rather than fetched from
+	// list.DefaultStyles(isDark), which carries no color in these two fields
+	// and so let a dead theme parameter look load-bearing — and because
+	// helpRows depends on the top padding row being here, which a library
+	// default could stop providing without us noticing.
+	s.pagination = lipgloss.NewStyle().PaddingLeft(rowPad)
+	s.help = lipgloss.NewStyle().Padding(1, 0, 0, rowPad)
 	return s
 }
 
 type choiceDelegate struct {
 	styles     styles // by value: no aliasing, no nil deref
 	titleWidth int    // padded width of the title column, 0 = unaligned
-	idxWidth   int    // digits in the largest row number
 }
 
 func (d choiceDelegate) Height() int                             { return 1 }
@@ -153,20 +182,26 @@ func (d choiceDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 			Render(ansi.Truncate(title, d.titleWidth, "…"))
 	}
 
-	row := fmt.Sprintf("%*d. %s  %s", d.idxWidth, index+1, title, choice.Desc)
+	row := title + descSep + choice.Desc
 
-	// Clamp to the list width so the row can never wrap and break Height()==1.
-	if avail := m.Width() - d.styles.choice.GetPaddingLeft() - d.styles.choice.GetPaddingRight(); avail > 0 {
+	// Pick the style before measuring against it: lipgloss wraps at
+	// width-padding, so bounding the row by the style that actually renders it
+	// makes the truncation and the reverse fill agree by construction. The bar
+	// stays solid, and the row can never wrap and break Height()==1.
+	style := d.styles.choice
+	if index == m.Index() {
+		style = d.styles.selectedChoice
+	}
+
+	bound := m.Width()
+	if barWidth := style.GetWidth(); barWidth > 0 {
+		bound = barWidth
+	}
+	if avail := bound - style.GetHorizontalPadding(); avail > 0 {
 		row = ansi.Truncate(row, avail, "…")
 	}
 
-	if index == m.Index() {
-		row = d.styles.selectedChoice.Render("> " + row)
-	} else {
-		row = d.styles.choice.Render(row)
-	}
-
-	fmt.Fprint(w, row)
+	fmt.Fprint(w, style.Render(row))
 }
 
 type model struct {
@@ -174,13 +209,12 @@ type model struct {
 	choice        int
 	styles        styles
 	width, height int
-	naturalTitle  int // widest Title across all choices, in display cells
-	idxWidth      int
+	naturalTitle  int // widest Choice.Title across all choices, in display cells
+	naturalDesc   int // widest Choice.Desc, same units
 }
 
-func (m *model) updateStyles(isDark bool) {
-	m.styles = newStyles(isDark)
-	m.list.Styles.Title = m.styles.title
+func (m *model) updateStyles() {
+	m.styles = newStyles()
 	m.list.Styles.PaginationStyle = m.styles.pagination
 	m.list.Styles.HelpStyle = m.styles.help
 	m.resize()
@@ -210,10 +244,21 @@ func (m *model) resize() {
 	if m.width > 0 {
 		titleWidth = min(m.naturalTitle, m.width/2)
 	}
+
+	// The bar spans the widest row, not the terminal: a straight right edge,
+	// without inverting half a wide terminal. Every title renders at exactly
+	// titleWidth, so the widest row is that column plus the widest description
+	// — no need to render them all to find out. Clamped so the bar can never
+	// outrun the terminal.
+	delegateStyles := m.styles
+	pad := delegateStyles.choice.GetHorizontalPadding()
+	if content := min(titleWidth+descGap+m.naturalDesc, m.width-pad); content > 0 {
+		delegateStyles.selectedChoice = delegateStyles.selectedChoice.Width(pad + content)
+	}
+
 	m.list.SetDelegate(choiceDelegate{
-		styles:     m.styles,
+		styles:     delegateStyles,
 		titleWidth: titleWidth,
-		idxWidth:   m.idxWidth,
 	})
 }
 

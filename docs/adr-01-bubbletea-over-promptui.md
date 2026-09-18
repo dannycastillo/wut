@@ -1,6 +1,7 @@
 # ADR-01: Bubble Tea over promptui for the picker
 
 - **Status:** Accepted
+- **Superseded by:** ADR-04
 - **Date:** 2026-09-17
 
 ## Context
