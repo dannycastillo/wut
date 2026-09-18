@@ -13,12 +13,16 @@ create the branch first, then commit — the work moves with you.
 
 ### Four prefixes, nothing else
 
-| Prefix  | Use for                                                 |
-| ------- | ------------------------------------------------------- |
+| Prefix  | Use for                                                  |
+| ------- | -------------------------------------------------------- |
 | `feat`  | new behavior someone using the tool can observe          |
 | `fix`   | correcting behavior that was wrong                       |
 | `doc`   | documentation only, including this file                  |
-| `chore` | deps, build, tooling, `.gitignore` — no behavior change  |
+| `chore` | deps, build, tooling, restructuring — no behavior change |
+
+`chore` covers moving code as well as maintaining it: an extraction that leaves
+behavior identical is a chore however large its diff, because what a reader
+needs to check is that nothing changed.
 
 If a change doesn't fit one of these, it's doing two things — split it until
 each piece fits.
