@@ -11,9 +11,9 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"wut/internal/ui"
 
 	"github.com/atotto/clipboard"
-	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -140,44 +140,28 @@ func searchCoordinator(query Query) error {
 		fmt.Fprintln(os.Stderr, "warning:", e) // some worked: degrade
 	}
 
-	// fmt.Println("Query Complete: ", query.Joined)
-
-	// Build UI
-	// ========
-
-	var options []string
-
-	for _, v := range finalResults {
-		option := fmt.Sprintf("%s %s", v.Cmd, v.Desc)
-		options = append(options, option)
+	choices := make([]ui.Choice, len(finalResults))
+	for i, r := range finalResults {
+		choices[i] = ui.Choice{Title: r.Cmd, Desc: r.Desc}
 	}
 
-	prompt := promptui.Select{
-		Label: "Select a Deployment Environment",
-		Items: options,
-		Size:  10, // Number of items visible at once before scrolling
-	}
-
-	index, _, err := prompt.Run()
-
+	idx, err := ui.Pick("Results", choices)
 	if err != nil {
-		if errors.Is(err, promptui.ErrInterrupt) || errors.Is(err, promptui.ErrEOF) {
-			return nil
+		if errors.Is(err, ui.ErrAborted) {
+			return nil // user quit; exit 0
 		}
-		return fmt.Errorf("prompt: %w", err)
+		return fmt.Errorf("picker: %w", err)
 	}
 
-	selectedOption := finalResults[index]
+	selected := finalResults[idx]
 
-	// copy to keyboard
-	// One line of code to copy text
-	err = clipboard.WriteAll(selectedOption.Cmd)
+	err = clipboard.WriteAll(selected.Cmd)
 
 	if err != nil {
 		return fmt.Errorf("clipboard writeall: %w", err)
 	}
 
-	fmt.Printf("\n🚀 Copied to clipboard: %s\n", selectedOption.Cmd)
+	fmt.Printf("\n🚀 Copied to clipboard: %s\n", selected.Cmd)
 
 	return nil
 }
