@@ -23,6 +23,25 @@ create the branch first, then commit — the work moves with you.
 If a change doesn't fit one of these, it's doing two things — split it until
 each piece fits.
 
+### One branch unless the split earns it
+
+A minor change in scope — a decision lands mid-branch, an answer widens the work
+a little — stays on the branch you're on. Two branches cost two reviews and two
+merges, and stacking one on the other pays that to preserve an intermediate
+state nobody will check out.
+
+Nothing is pushed until the merge, so the history isn't fixed yet:
+
+```sh
+git reset --soft main   # branch pointer back to main, every change still staged
+```
+
+Recommit from there in whatever shape reads best, and rename the branch when its
+old name stops describing the work.
+
+Split only when the halves could genuinely ship apart — when someone would want
+to merge, revert, or bisect them separately.
+
 ### Naming
 
 - **Branch:** `<prefix>/<short-kebab-description>` — `feat/pane-resize`
