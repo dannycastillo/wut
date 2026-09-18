@@ -2,9 +2,14 @@ package ui
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -266,6 +271,88 @@ func TestBarSpansTheWidestRowNotItsOwn(t *testing.T) {
 	}
 }
 
+// The picker draws relative to its own first row and erases only downward, so
+// once the terminal moves rows it has already emitted those rows are beyond
+// reach. Which resizes do that is not knowable from here — it depends on the
+// rest of the screen and on how the terminal reflows — so every real change
+// closes it.
+func TestAnyResizeClosesThePicker(t *testing.T) {
+	m := size(t, newModel(sample(30)), 80, 24)
+
+	for _, tc := range []struct {
+		name string
+		w, h int
+	}{
+		{"one row shorter", 80, 23},
+		{"one column narrower", 79, 24},
+		{"one row taller", 80, 25},
+		{"one column wider", 81, 24},
+		{"much smaller", 20, 6},
+		{"much larger", 200, 60},
+		{"both at once", 60, 40},
+	} {
+		next, cmd := m.Update(tea.WindowSizeMsg{Width: tc.w, Height: tc.h})
+		got := next.(model)
+
+		if cmd == nil {
+			t.Errorf("%s (%dx%d): kept running, want close", tc.name, tc.w, tc.h)
+			continue
+		}
+		if _, ok := cmd().(tea.QuitMsg); !ok {
+			t.Errorf("%s (%dx%d): returned %T, want QuitMsg", tc.name, tc.w, tc.h, cmd())
+		}
+		if got.choice != -1 {
+			t.Errorf("%s (%dx%d): closed with choice %d, want none selected",
+				tc.name, tc.w, tc.h, got.choice)
+		}
+	}
+}
+
+// Bubble Tea re-sends the current size in some situations. Without this guard
+// the picker would close the moment it finished drawing.
+func TestResendingTheSameSizeIsNotAResize(t *testing.T) {
+	m := size(t, newModel(sample(30)), 80, 24)
+
+	next, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if cmd != nil {
+		t.Errorf("the same size returned %T, want no command", cmd())
+	}
+	if !strings.Contains(next.(model).frame(), "tofu init") {
+		t.Error("the same size tore the list down")
+	}
+}
+
+func TestFirstSizeOpensThePicker(t *testing.T) {
+	next, cmd := newModel(sample(30)).Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := next.(model)
+
+	if cmd != nil {
+		t.Errorf("opening returned %T, want no command", cmd())
+	}
+	if !strings.Contains(m.frame(), "tofu init") {
+		t.Error("opening did not lay the list out")
+	}
+}
+
+// Pick erases by counting back from the frame, so a frame it is about to
+// abandon has to keep matching what is on screen.
+func TestClosingLeavesTheFrameAlone(t *testing.T) {
+	m := size(t, newModel(sample(30)), 80, 24)
+	before := m.frame()
+
+	next, cmd := m.Update(tea.WindowSizeMsg{Width: 20, Height: 6})
+	got := next.(model)
+
+	if cmd == nil {
+		t.Fatal("expected that resize to close the picker")
+	}
+	if after := got.frame(); after != before {
+		t.Errorf("the frame was re-laid-out on the way out:\n%q\nwant unchanged:\n%q",
+			after, before)
+	}
+}
+
 func TestEnterSelectsHoveredRow(t *testing.T) {
 	m := size(t, newModel(sample(5)), 80, 24)
 
@@ -335,4 +422,73 @@ func TestPickRefusesEmpty(t *testing.T) {
 	if idx != -1 {
 		t.Errorf("idx = %d, want -1", idx)
 	}
+}
+
+// Drives the built binary under tmux, because what it guards is what the
+// terminal does with rows already emitted — nothing a model can observe.
+//
+//	WUT_TERMINAL_TESTS=1 go test ./internal/ui/ -run TestResizeLeavesNothingBehind
+func TestResizeLeavesNothingBehind(t *testing.T) {
+	if os.Getenv("WUT_TERMINAL_TESTS") == "" {
+		t.Skip("set WUT_TERMINAL_TESTS=1 to run (needs tmux, takes ~8s)")
+	}
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux is not installed")
+	}
+
+	dir := t.TempDir()
+
+	// Its own HOME, so the fixture is not whatever is in the developer's ~/.wut.
+	snippets := filepath.Join(dir, "home", ".wut")
+	if err := os.MkdirAll(snippets, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for i := range 12 {
+		fmt.Fprintf(&b, "# row %02d of the resize fixture\nzzfixture-%02d --flag\n\n", i, i)
+	}
+	if err := os.WriteFile(filepath.Join(snippets, "fixture.txt"), []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	bin := filepath.Join(dir, "wut")
+	if out, err := exec.Command("go", "build", "-o", bin, "wut").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+
+	session := "wut-resize-test"
+	tmux := func(args ...string) string {
+		out, err := exec.Command("tmux", args...).Output()
+		if err != nil && args[0] != "kill-session" {
+			t.Fatalf("tmux %s: %v", strings.Join(args, " "), err)
+		}
+		return string(out)
+	}
+	_ = exec.Command("tmux", "kill-session", "-t", session).Run()
+	t.Cleanup(func() { _ = exec.Command("tmux", "kill-session", "-t", session).Run() })
+
+	tmux("new-session", "-d", "-s", session, "-x", "80", "-y", "24")
+	// 1.8s, not 1.5s: at 1.5s this went intermittent, roughly one run in eight.
+	settle := func() { time.Sleep(1800 * time.Millisecond) }
+
+	tmux("send-keys", "-t", session,
+		fmt.Sprintf("HOME=%s PS1='> ' %s zzfixture", filepath.Join(dir, "home"), bin), "Enter")
+	settle()
+
+	count := func() int {
+		return strings.Count(tmux("capture-pane", "-p", "-t", session), "zzfixture-00")
+	}
+	if got := count(); got != 1 {
+		t.Fatalf("picker did not open cleanly: %d copies of the first row, want 1", got)
+	}
+
+	tmux("resize-window", "-t", session, "-x", "80", "-y", "8")
+	settle()
+
+	// The picker should have closed itself rather than repaint through a resize
+	// it cannot reason about, and taken its rows with it.
+	if got := count(); got != 0 {
+		t.Errorf("after a resize: %d picker rows still on screen, want 0", got)
+	}
+
 }

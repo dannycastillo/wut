@@ -13,9 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Basic ANSI green rather than a hex value: ANSI 2 is whatever green the user's
-// theme defines, so the mark reads against a background this command cannot
-// see. Same reasoning as the picker's reverse-video highlight (ADR-04).
+// ANSI 2 rather than a hex value: whatever green the user's theme defines, so
+// the mark reads against a background this command cannot see.
 var copiedMark = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("✔")
 
 // rootCmd represents the base command when called without any subcommands
@@ -93,7 +92,7 @@ func run(query search.Query) error {
 	idx, err := ui.Pick(choices)
 	if err != nil {
 		if errors.Is(err, ui.ErrAborted) {
-			return nil // user quit; exit 0
+			return nil // nothing selected; exit 0
 		}
 		return fmt.Errorf("picker: %w", err)
 	}
@@ -106,11 +105,9 @@ func run(query search.Query) error {
 		return fmt.Errorf("clipboard writeall: %w", err)
 	}
 
-	// No leading newline: the erase leaves the cursor on the frame's blank
-	// first row, so this lands directly under the invoking command line.
-	//
-	// Through colorprofile so the mark degrades rather than leaks: it strips the
-	// escape when stdout is not a terminal, and honours NO_COLOR and CLICOLOR.
+	// No leading newline: the erase leaves the cursor on the frame's blank first
+	// row. Through colorprofile so the escape is stripped when stdout is not a
+	// terminal, and NO_COLOR is honoured.
 	fmt.Fprintf(colorprofile.NewWriter(os.Stdout, os.Environ()),
 		"%s Copied: %s\n", copiedMark, selected.Cmd)
 

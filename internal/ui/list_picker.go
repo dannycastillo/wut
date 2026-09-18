@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -13,6 +15,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// ErrAborted means the picker closed without a selection, whether the user
+// dismissed it or a resize did.
 var ErrAborted = errors.New("selection aborted")
 
 // Layout tuning, all in terminal rows.
@@ -85,15 +89,18 @@ func newModel(choices []Choice) model {
 }
 
 // Pick runs the picker and returns the index of the chosen Choice, or
-// ErrAborted if the user dismissed it without choosing.
+// ErrAborted if it closed without one.
 func Pick(choices []Choice) (int, error) {
 	if len(choices) == 0 {
 		return -1, ErrAborted // no index it could honestly return
 	}
 
-	m := newModel(choices)
+	p := tea.NewProgram(newModel(choices), tea.WithOutput(os.Stderr))
 
-	final, err := tea.NewProgram(m, tea.WithOutput(os.Stderr)).Run()
+	stop := onResize(p.Quit)
+	defer stop()
+
+	final, err := p.Run()
 	if err != nil {
 		return -1, fmt.Errorf("run picker: %w", err)
 	}
@@ -118,6 +125,35 @@ func Pick(choices []Choice) (int, error) {
 		return -1, ErrAborted
 	}
 	return fm.choice, nil
+}
+
+// onResize calls f on every terminal resize until the returned stop is called.
+//
+// This exists to get ahead of Bubble Tea, which handles the same signal: its
+// WindowSizeMsg costs two trips through the event loop and an ioctl in between,
+// and it repaints the frame on that message before the model is given a say.
+// The signal is the earliest the picker can know, and every repaint after the
+// terminal has moved is one it cannot take back.
+func onResize(f func()) (stop func()) {
+	winch := make(chan os.Signal, 1)
+	signal.Notify(winch, syscall.SIGWINCH)
+
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-winch:
+				f()
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	return func() {
+		signal.Stop(winch)
+		close(done)
+	}
 }
 
 type styles struct {
@@ -242,9 +278,25 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		m.resize()
-		return m, nil
+		switch {
+		case m.width == 0 && m.height == 0:
+			m.width, m.height = msg.Width, msg.Height
+			m.resize()
+			return m, nil
+
+		case msg.Width == m.width && msg.Height == m.height:
+			return m, nil // Bubble Tea re-sends the current size in some situations
+		}
+
+		// Any real change closes the picker. It draws relative to its own first
+		// row and erases only downward, so once the terminal moves rows it has
+		// already emitted — by scrolling or re-wrapping them — they are beyond
+		// anything it can erase, and repainting adds a second copy underneath.
+		//
+		// No resize() here: Pick's erase counts back from the frame, so it has
+		// to keep matching what is on screen. choice stays -1, so this reaches
+		// the caller as ErrAborted like any other close.
+		return m, tea.Quit
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
