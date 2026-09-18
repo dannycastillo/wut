@@ -1,0 +1,53 @@
+# Show working tree status
+git status
+
+# Show unstaged changes
+git diff
+
+# Show staged changes
+git diff --staged
+
+# Stage all changes
+git add -A
+
+# Commit with message
+git commit -m "MESSAGE"
+
+# Amend last commit without changing message
+git commit --amend --no-edit
+
+# Compact one-line log with graph
+git log --oneline --graph --decorate
+
+# Create and switch to new branch
+git switch -c BRANCH_NAME
+
+# Switch to existing branch
+git switch BRANCH_NAME
+
+# List local branches
+git branch
+
+# Delete local branch
+git branch -d BRANCH_NAME
+
+# Pull with rebase
+git pull --rebase
+
+# Push and set upstream
+git push -u origin BRANCH_NAME
+
+# Stash changes
+git stash
+
+# Apply and drop latest stash
+git stash pop
+
+# Discard changes to a file
+git restore FILE
+
+# Unstage a file
+git restore --staged FILE
+
+# Undo last commit but keep changes
+git reset --soft HEAD~1

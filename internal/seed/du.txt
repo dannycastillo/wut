@@ -1,0 +1,11 @@
+# check size of a directory
+du -sh DIR
+
+# check size of each item in a directory
+du -sh DIR/*
+
+# list largest items in current directory
+du -sh * | sort -rh | head -n 10
+
+# show sizes one directory level deep
+du -h -d 1 DIR

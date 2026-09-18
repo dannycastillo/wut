@@ -1,0 +1,26 @@
+# run ci
+mise run ci
+
+# list available tasks
+mise tasks
+
+# install tools from config
+mise install
+
+# list installed tools
+mise ls
+
+# install and use a tool version globally
+mise use -g TOOL@VERSION
+
+# install and use a tool version in current project
+mise use TOOL@VERSION
+
+# show current tool versions
+mise current
+
+# upgrade all tools
+mise upgrade
+
+# check for setup problems
+mise doctor

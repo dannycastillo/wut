@@ -1,0 +1,11 @@
+# check size of a directory
+du -sh DIR
+
+# check computer disk use
+df -h /System/Volumes/Data
+
+# show all mounted filesystems
+df -h
+
+# list largest items in current directory
+du -sh * | sort -rh | head -n 10

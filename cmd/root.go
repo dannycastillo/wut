@@ -8,9 +8,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+	"wut/internal/seed"
 	"wut/internal/ui"
 
 	"github.com/atotto/clipboard"
@@ -26,6 +29,15 @@ type Result struct {
 type Query struct {
 	Joined string
 	Split  []string
+}
+
+// snippetSource is one file of snippets. fs.FS is the common interface between
+// the seed set compiled into the binary and the user's files on disk, so
+// scanFile never needs to know which of the two it was handed.
+type snippetSource struct {
+	fsys  fs.FS
+	path  string // path within fsys, which is not a path on disk for seed files
+	label string // how to name this file in an error message
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -97,7 +109,10 @@ func init() {
 }
 
 func searchCoordinator(query Query) error {
-	files := listFiles()
+	files, err := listFiles()
+	if err != nil {
+		return err
+	}
 
 	var wg sync.WaitGroup
 
@@ -175,16 +190,67 @@ func searchCoordinator(query Query) error {
 	return nil
 }
 
-func listFiles() []string {
-	return []string{"internal/data.txt"}
+// listFiles returns the seed snippets shipped in the binary, followed by every
+// *.txt under ~/.wut. The seed set is always searched, so a user who has not
+// created ~/.wut yet still gets results rather than an error.
+func listFiles() ([]snippetSource, error) {
+	files, err := collectTxt(seed.FS, func(p string) string { return "seed/" + p })
+	if err != nil {
+		return nil, fmt.Errorf("reading embedded seed snippets: %w", err)
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("locating home directory: %w", err)
+	}
+
+	dir := filepath.Join(home, ".wut")
+
+	userFiles, err := collectTxt(os.DirFS(dir), func(p string) string {
+		return filepath.Join(dir, p)
+	})
+
+	// No ~/.wut is the ordinary state of a fresh install, not a failure: the
+	// seed set still answers the query. Any other error is worth reporting.
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	return append(files, userFiles...), nil
 }
 
-func scanFile(filename string, query Query, ch chan<- Result) error {
+// collectTxt walks fsys and returns every *.txt in it, labelled for error
+// messages by label, which receives the path within fsys.
+func collectTxt(fsys fs.FS, label func(string) string) ([]snippetSource, error) {
+	var found []snippetSource
 
-	file, err := os.Open(filename)
+	err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(strings.ToLower(p), ".txt") {
+			return nil
+		}
+		found = append(found, snippetSource{fsys: fsys, path: p, label: label(p)})
+		return nil
+	})
+
+	return found, err
+}
+
+func scanFile(src snippetSource, query Query, ch chan<- Result) error {
+
+	file, err := src.fsys.Open(src.path)
 
 	if err != nil {
-		return err
+		// The error names src.path, which is relative to fsys and means nothing
+		// to a reader. Swap in the label; Op and Err are already the right words.
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) {
+			pathErr.Path = src.label
+			return pathErr
+		}
+		return fmt.Errorf("%s: %w", src.label, err)
 	}
 
 	defer file.Close()
@@ -223,7 +289,7 @@ func scanFile(filename string, query Query, ch chan<- Result) error {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("reading %s: %w", filename, err)
+		return fmt.Errorf("reading %s: %w", src.label, err)
 	}
 
 	return nil
