@@ -77,6 +77,21 @@ is cheap.
 `chore/trim-the-comments` rewrites comments in every test file. Run these two in
 sequence, not beside each other.
 
+### Dead defensiveness in the tmux helper
+
+`internal/ui/list_picker_test.go`'s `tmux` helper guards with
+`if err != nil && args[0] != "kill-session"`, but no call reaches it with
+`kill-session`: the four helper calls are `new-session`, `send-keys`,
+`capture-pane` and `resize-window`, and the only kill is the `t.Cleanup` one,
+which calls `exec.Command` directly and discards its error. So the condition is
+always true and reduces to `if err != nil`.
+
+It predates `fix/tmux-test-session-name` and was flagged by that branch's
+worker rather than folded in, correctly, since the todo did not declare it.
+Worse than redundant: it implies the helper handles kills, so a reader goes
+looking for a path that does not exist. Recorded as `Harness-Notes:` on
+`fc5e53d`.
+
 ## Done when
 - [ ] `scanChunk`'s two scoring rules are asserted directly, with the numbers
 - [ ] `countMatches` and `buildMatch` each have a test that asserts their output
@@ -88,4 +103,5 @@ sequence, not beside each other.
 - [ ] `cmd` has a test file, and the chosen seam (or the decision not to build
       one) is stated in the commit message
 - [ ] `go test -race ./...` passes
+- [ ] The `args[0] != "kill-session"` guard is gone from the tmux helper
 - [ ] `go build ./...` and `go vet ./...` pass
