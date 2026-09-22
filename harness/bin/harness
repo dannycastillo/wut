@@ -47,5 +47,8 @@ esac
 verb_file="$HARNESS_HOME/verbs/$verb.sh"
 [ -f "$verb_file" ] || die "$EX_USAGE" "unknown verb: $verb (try: harness help)"
 
+HARNESS_VERB=$verb
+export HARNESS_VERB
+
 # shellcheck source=/dev/null  # the verb is resolved at runtime
 . "$verb_file"

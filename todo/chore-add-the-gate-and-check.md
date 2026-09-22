@@ -2,12 +2,16 @@
 
 - **Priority:** high
 - **Branch:** chore/add-the-gate-and-check
-- **Touches:** harness/verbs/gate.sh, harness/verbs/check.sh, harness/lib/gate.sh, harness/lib/check.sh, AGENTS.md
-- **Blocked by:** chore-add-the-harness-skeleton, fix-tmux-test-session-name
+- **Touches:** harness/verbs/check.sh, harness/lib/check.sh, AGENTS.md
+- **Blocked by:** —
 
 ## Goal
-`harness gate` runs the project's checks out of `.harness.conf`, and
 `harness check` answers mechanically whether a branch is fit to merge.
+
+## Already landed
+`chore/add-claim-and-gate` shipped `gate` with its exclusive-gate lock, and the
+preflight that refuses to run a declared gate whose tool is absent. Only
+`check` is left.
 
 ## Why
 The gate is what replaces a human reading every diff, so it lands before the
@@ -16,19 +20,6 @@ exposing it to workers means a Touches violation costs a local failure instead
 of a rejection round.
 
 ## Notes
-
-### gate
-
-`--quick` runs `HARNESS_QUICK_GATES`, `--full` runs `HARNESS_GATES`, in declared
-order, one result line per gate so a failure names itself.
-
-Gates listed in `HARNESS_EXCLUSIVE_GATES` take a shared lock first. `test` is
-there because of the tmux session; `fix-tmux-test-session-name` removes the
-sharp edge and the lock keeps the guarantee.
-
-The full gate is roughly three seconds warm, and `GOCACHE` is shared safely
-across worktrees. Do not add caching or skipping — a gate that sometimes does
-not run is worse than a slow one.
 
 ### check
 
@@ -58,9 +49,6 @@ an incidental one.
 the merge rules wait until there is an integrator to hand them to.
 
 ## Done when
-- [ ] `gate --quick` and `gate --full` run the declared gates in order, report
-      per gate, and exit non-zero on the first failure
-- [ ] Two concurrent `gate --full` runs serialize on the exclusive gate
 - [ ] `check` returns each hard stop above with its reason code
 - [ ] Two hand-made `docs/adr-07-*.md` files fail `check` as `adr-duplicate`
 - [ ] A diff touching `AGENTS.md` fails as `protected-path`

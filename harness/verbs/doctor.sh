@@ -3,6 +3,7 @@
 # Assertions only. What the harness can do and how to invoke it is harness help.
 
 _selftest=no
+_repair=no
 while [ $# -gt 0 ]; do
 	case $1 in
 	--print-state-dir)
@@ -10,10 +11,17 @@ while [ $# -gt 0 ]; do
 		exit "$EX_OK"
 		;;
 	--selftest) _selftest=yes ;;
+	--repair) _repair=yes ;;
 	*) die "$EX_USAGE" "doctor: unknown option: $1" ;;
 	esac
 	shift
 done
+
+if [ "$_repair" = yes ]; then
+	log 'reconciling claims against git worktree list'
+	harness_state_repair
+	log 'repair: done'
+fi
 
 _fails=0
 _row() { printf '  %-13s %s\n' "$1" "$2"; }
