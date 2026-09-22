@@ -102,28 +102,7 @@ _row push "${HARNESS_PUSH:-no}"
 
 if [ "$_selftest" = yes ]; then
 	printf '\n  selftest (HEAD, not the working tree)\n'
-	_tmp=$(mktemp -d)
-	_wt="$_tmp/linked"
-	if git worktree add --detach "$_wt" HEAD >/dev/null 2>&1; then
-		if [ -x "$_wt/harness/bin/harness" ]; then
-			_here=$(harness_state_dir)
-			_there=$(cd "$_wt" && ./harness/bin/harness doctor --print-state-dir) ||
-				_there="(the linked worktree's harness failed)"
-			if [ "$_here" = "$_there" ]; then
-				_row "  state dir" "identical from a linked worktree"
-			else
-				_bad "  state dir" "root: $_here / linked: $_there"
-			fi
-		else
-			_bad "  worktree" "harness/ is not committed on HEAD yet"
-		fi
-		git worktree remove --force "$_wt" >/dev/null 2>&1 ||
-			_bad "  cleanup" "could not remove $_wt"
-		git worktree prune
-	else
-		_bad "  worktree" "could not create a throwaway worktree"
-	fi
-	rm -rf "$_tmp"
+	harness_selftest || _fails=$((_fails + 1))
 fi
 
 printf '\n'
