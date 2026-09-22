@@ -3,7 +3,7 @@
 - **Priority:** medium
 - **Branch:** chore/add-the-install-script
 - **Touches:** harness/*, .harness.conf, AGENTS.md, .claude/*
-- **Blocked by:** chore-add-the-integrator, chore-add-the-platform-adapters
+- **Blocked by:** chore-retire-the-human-merge-gate, chore-add-the-platform-adapters
 
 ## Goal
 The harness installs into a repo that has never seen it, and carries a name

@@ -3,7 +3,7 @@
 - **Priority:** low
 - **Branch:** chore/add-the-platform-adapters
 - **Touches:** harness/adapters/*, .claude/*
-- **Blocked by:** doc-write-the-role-docs
+- **Blocked by:** chore-retire-the-human-merge-gate
 
 ## Goal
 Starting a worker on Claude Code or Cursor is a slash command or a rule, and
@@ -18,7 +18,8 @@ being AI-agnostic.
 
 Each adapter is a pointer and nothing more.
 `.claude/skills/harness-worker/SKILL.md` says to read `harness/roles/worker.md`
-and follow it; same shape for integrator and reviewer. Cursor gets
+and follow it; same shape for integrator and reviewer. All three role docs have
+to exist first, and `reviewer.md` is the last of them to land. Cursor gets
 `.cursor/rules/*.mdc` doing the same thing.
 
 `adapters/README.md`: how to add one in about ten lines, and the note that a

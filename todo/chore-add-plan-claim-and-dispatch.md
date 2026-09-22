@@ -2,7 +2,7 @@
 
 - **Priority:** high
 - **Branch:** chore/add-plan-claim-and-dispatch
-- **Touches:** harness/verbs/plan.sh, harness/verbs/claim.sh, harness/verbs/abandon.sh, harness/verbs/dispatch.sh, harness/lib/graph.sh, harness/lib/claim.sh, harness/lib/lock.sh
+- **Touches:** harness/verbs/plan.sh, harness/verbs/dispatch.sh, harness/verbs/claim.sh, harness/lib/graph.sh
 - **Blocked by:** —
 
 ## Goal
