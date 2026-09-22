@@ -2,10 +2,14 @@
 #
 # POSIX sh only: macOS ships bash 3.2.57, so no arrays and no mapfile.
 
+# shellcheck disable=SC2034  # read by verbs, which are sourced at runtime
 EX_OK=0
 EX_FAIL=1
 EX_USAGE=2
 EX_PAUSED=3
+# The environment cannot run the gate, as distinct from the gate failing.
+# The integrator must not blame a branch for a misconfigured machine.
+EX_CONFIG=4
 EX_JUDGE=10
 
 log()  { printf '%s\n' "$*" >&2; }
@@ -29,7 +33,7 @@ harness_state_dir() {
 	_d=$(git rev-parse --git-common-dir) || return 1
 	case $_d in
 	/*) ;;
-	*) _d=$(CDPATH= cd -- "$_d" && pwd -P) ;;
+	*) _d=$(CDPATH='' cd -- "$_d" && pwd -P) ;;
 	esac
 	printf '%s/harness\n' "$_d"
 }
@@ -41,7 +45,7 @@ harness_main_worktree() {
 	_d=$(git rev-parse --git-common-dir) || return 1
 	case $_d in
 	/*) ;;
-	*) _d=$(CDPATH= cd -- "$_d" && pwd -P) ;;
+	*) _d=$(CDPATH='' cd -- "$_d" && pwd -P) ;;
 	esac
 	dirname -- "$_d"
 }
@@ -52,7 +56,7 @@ harness_worktree_root() {
 	*) _r="$(harness_main_worktree)/$HARNESS_WORKTREE_ROOT" ;;
 	esac
 	# It need not exist yet, so normalize the parent and keep the leaf.
-	printf '%s/%s\n' "$(CDPATH= cd -- "$(dirname -- "$_r")" && pwd -P)" "$(basename -- "$_r")"
+	printf '%s/%s\n' "$(CDPATH='' cd -- "$(dirname -- "$_r")" && pwd -P)" "$(basename -- "$_r")"
 }
 
 # Where trunk is checked out, discovered rather than assumed. Empty when trunk

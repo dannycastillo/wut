@@ -7,10 +7,12 @@
 
 set -eu
 
-HARNESS_HOME=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+HARNESS_HOME=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd -P)
 readonly HARNESS_HOME
 
-. "$HARNESS_HOME/lib/common.sh"
+# shellcheck source=/dev/null  # a glob cannot be followed statically
+for _lib in "$HARNESS_HOME"/lib/*.sh; do . "$_lib"; done
+unset _lib
 
 HARNESS_REPO=$(git rev-parse --show-toplevel 2>/dev/null) ||
 	die "$EX_FAIL" "not inside a git repository"
@@ -26,6 +28,7 @@ fi
 
 [ -f "$HARNESS_REPO/.harness.conf" ] ||
 	die "$EX_FAIL" "no .harness.conf in $HARNESS_REPO — run harness/install.sh"
+# shellcheck source=/dev/null  # per-project, by design
 . "$HARNESS_REPO/.harness.conf"
 
 : "${HARNESS_PROJECT:?.harness.conf must set HARNESS_PROJECT}"
@@ -44,4 +47,5 @@ esac
 verb_file="$HARNESS_HOME/verbs/$verb.sh"
 [ -f "$verb_file" ] || die "$EX_USAGE" "unknown verb: $verb (try: harness help)"
 
+# shellcheck source=/dev/null  # the verb is resolved at runtime
 . "$verb_file"

@@ -59,16 +59,21 @@ else
 	_bad "worktree root" "$(dirname -- "$_wt_root") is not writable"
 fi
 
-# A gate named but not defined would be skipped in silence, which is the one
-# failure a gate must never have.
-_missing=
-for _g in $HARNESS_GATES; do
-	harness_is_defined "harness_gate_$_g" || _missing="$_missing $_g"
-done
-if [ -n "$_missing" ]; then
-	_bad gates "undefined:$_missing"
+# One preflight, shared with the gate verb: doctor is advisory, so the same
+# assertion has to sit in front of the thing that actually runs the gates.
+if _pf=$(harness_gate_preflight 2>&1); then
+	_row gates "$HARNESS_GATES (all runnable)"
 else
 	_row gates "$HARNESS_GATES"
+	# Fed by redirect, not a pipe. A pipe would run the loop in a subshell and
+	# the _fails increments would be discarded with it.
+	while IFS= read -r _line; do
+		if [ -n "$_line" ]; then
+			_bad preflight "${_line#harness: }"
+		fi
+	done <<PF
+$_pf
+PF
 fi
 
 _orphan=
