@@ -219,7 +219,7 @@ filing at once would race for the same one.
 
 - **Priority:** high | medium | low
 - **Branch:** <prefix>/<short-kebab>
-- **Touches:** comma-separated paths, or `new` / `unknown`
+- **Touches:** paths or globs, or one of `ALL` / `NEW <glob>` / `UNKNOWN`
 - **Blocked by:** other todo filenames, or `—`
 
 ## Goal
@@ -262,15 +262,42 @@ Priority orders the queue; it does not override **Blocked by**. A blocked
 
 ### Touches, and why it's the precise one
 
-`Touches` is what makes parallel work possible. Before dispatching two agents:
+`Touches` is what makes parallel work possible. It is a reservation on a set of
+paths, and it is the only thing deciding what can run side by side.
+
+Paths or globs, space- or comma-separated, repo-relative. No prose and no
+backticks: a field a script cannot parse reserves nothing.
+
+```
+- **Touches:** internal/search/scan.go, internal/search/scan_test.go
+- **Touches:** internal/*
+```
+
+A `*` matches across `/`, so `internal/*` covers `internal/ui/list_picker.go`.
+That is the shell's `case` behaviour rather than a choice, and it errs the
+useful way: too broad only costs serialization, too narrow puts two agents in
+one file.
+
+Three tokens stand in for a path list:
+
+| Token         | Means                                                        |
+| ------------- | ------------------------------------------------------------ |
+| `ALL`         | the whole repo. Conflicts with everything, so it runs alone  |
+| `NEW <glob>`  | creates files that don't exist yet, bounded by the glob      |
+| `UNKNOWN`     | not scoped yet. Treated as `ALL` until someone scopes it     |
+
+There is no `Excludes:`. An exclusion the scheduler has to reason about is a
+collision it can get wrong; the nuance belongs in **Notes**, where a reader
+acts on it instead.
+
+Overlapping paths means run them one after the other, not side by side:
 
 ```sh
 grep '\*\*Touches:\*\*' todo/*.md
 ```
 
-Overlapping paths means run them one after the other, not side by side. If you
-discover mid-task that you must touch a file the todo didn't list, **say so** —
-another agent may be in that file right now.
+If you discover mid-task that you must touch a file the todo didn't list,
+**say so** — another agent may be in that file right now.
 
 **Done when** is the contract. Finish all of it; don't do more than it asks. If
 you spot adjacent work, file a todo for it rather than folding it in.
