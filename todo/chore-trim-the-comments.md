@@ -2,7 +2,7 @@
 
 - **Priority:** high
 - **Branch:** chore/trim-the-comments
-- **Touches:** every `.go` file; `internal/ui` only for its missing package doc
+- **Touches:** ALL
 - **Blocked by:** —
 
 ## Goal
