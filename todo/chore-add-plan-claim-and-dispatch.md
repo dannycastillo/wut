@@ -3,11 +3,18 @@
 - **Priority:** high
 - **Branch:** chore/add-plan-claim-and-dispatch
 - **Touches:** harness/verbs/plan.sh, harness/verbs/claim.sh, harness/verbs/abandon.sh, harness/verbs/dispatch.sh, harness/lib/graph.sh, harness/lib/claim.sh, harness/lib/lock.sh
-- **Blocked by:** chore-add-the-harness-skeleton
+- **Blocked by:** —
 
 ## Goal
 Three agents can be put onto three non-conflicting todos with one command each,
 and the backlog is what decides which three.
+
+## Already landed
+`chore/add-claim-and-gate` shipped `claim`, `abandon`, `path`, `status` and the
+`mkdir` lock, so a todo can be claimed and given back today. What is missing is
+everything that decides *which* todo: `plan`, the Touches intersection, the
+barrier, `--next`, `--scratch` and `dispatch`. Until those exist a human picks
+the todo by name, which is safe for one worker and unsafe for three.
 
 ## Why
 This is the unit that pays for itself before the rest exists. With `plan` and
@@ -40,24 +47,18 @@ It must reproduce these, which are the ground truth on today's backlog:
 
 The last one is the reason `plan` exists: eyeballing `grep` output missed it.
 
-### claim
+### claim, the parts still missing
 
-Two races, two mechanisms (ADR-07), in this order:
+Steps 1, 4, 5 and 6 of ADR-07's sequence are built. Still to add:
 
-1. `mkdir` the claim lock, or fail
-2. refuse if `PAUSED` or `BARRIER` is present
-3. reject if Touches intersect an active claim — git cannot see this race
-4. `git worktree add -b <branch> <path>` — non-zero means the todo is taken
-5. write `claims/<stem>`
-6. release the lock
+- step 2: refuse while `PAUSED` or `BARRIER` is present
+- step 3: reject a candidate whose Touches intersect an active claim — the race
+  git cannot see, and the reason two agents on two *different* todos can still
+  end up in one file
+- `--next` to pick the highest-priority runnable todo, which needs `plan`
+- `--scratch` for a personal worktree with no todo attached
 
-Dying between 4 and 5 is recovered by `doctor --repair`, so step 5 is an
-annotation and step 4 is the claim.
-
-`--scratch` gives a personal worktree with no todo attached. `abandon` releases
-a claim and frees its paths; `--keep-branch` leaves the work in place.
-
-Stale locks are reported, never stolen.
+The claim file already carries `touches=`, so step 3 needs no state change.
 
 ### dispatch
 
@@ -72,12 +73,10 @@ Gate, check, submit, integrate.
 
 ## Done when
 - [ ] `plan` reports all five clusters in the table above, and the barrier
-- [ ] Six concurrent `claim` calls on one todo produce exactly one worktree
 - [ ] A claim whose Touches overlap an active claim is refused, naming the path
-- [ ] `claim` refuses past `HARNESS_MAX_WORKERS`, and while `PAUSED` or `BARRIER`
+- [ ] `claim` refuses while `PAUSED` or `BARRIER` is present
 - [ ] `eval "$(harness dispatch worker)"` leaves an agent in its own worktree;
       with `HARNESS_AGENT_CMD` unset it prints a command that works when pasted
-- [ ] `abandon` frees the paths and `plan` offers the todo again
-- [ ] A stale lock is reported, not stolen
+- [ ] `plan` offers an abandoned todo again
 - [ ] `sh -n` passes on every shell file
 - [ ] `go build ./...` and `go vet ./...` pass

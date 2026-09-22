@@ -2,7 +2,7 @@
 
 - **Priority:** high
 - **Branch:** chore/add-ci
-- **Touches:** .github/workflows/ci.yml, .golangci.yml, README.md
+- **Touches:** .github/workflows/ci.yml, .golangci.yml, README.md, .harness.conf
 - **Blocked by:** —
 
 ## Goal
@@ -26,6 +26,11 @@ itself the same way, instead of each one being spot-checked by hand.
 | fmt | `gofmt -l .`, fail if output is non-empty | `gofmt -l` exits 0 even when it lists files, so test the output, not the status |
 | test | `go test -race ./...` | see below |
 | lint | `golangci-lint run` | |
+
+The `lint` gate is defined in `.harness.conf` but deliberately left out of
+`HARNESS_GATES`, because a declared gate whose tool is absent is a hard
+failure. Installing golangci-lint is what makes declaring it honest, so adding
+`lint` to that list belongs to this todo.
 
 `-race` is the one worth arguing for: `Find` at `internal/search/search.go:48-69`
 fans out a goroutine per file over an unbuffered result channel and a buffered

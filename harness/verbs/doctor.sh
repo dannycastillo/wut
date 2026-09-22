@@ -3,6 +3,7 @@
 # Assertions only. What the harness can do and how to invoke it is harness help.
 
 _selftest=no
+_repair=no
 while [ $# -gt 0 ]; do
 	case $1 in
 	--print-state-dir)
@@ -10,10 +11,17 @@ while [ $# -gt 0 ]; do
 		exit "$EX_OK"
 		;;
 	--selftest) _selftest=yes ;;
+	--repair) _repair=yes ;;
 	*) die "$EX_USAGE" "doctor: unknown option: $1" ;;
 	esac
 	shift
 done
+
+if [ "$_repair" = yes ]; then
+	log 'reconciling claims against git worktree list'
+	harness_state_repair
+	log 'repair: done'
+fi
 
 _fails=0
 _row() { printf '  %-13s %s\n' "$1" "$2"; }
@@ -59,16 +67,21 @@ else
 	_bad "worktree root" "$(dirname -- "$_wt_root") is not writable"
 fi
 
-# A gate named but not defined would be skipped in silence, which is the one
-# failure a gate must never have.
-_missing=
-for _g in $HARNESS_GATES; do
-	harness_is_defined "harness_gate_$_g" || _missing="$_missing $_g"
-done
-if [ -n "$_missing" ]; then
-	_bad gates "undefined:$_missing"
+# One preflight, shared with the gate verb: doctor is advisory, so the same
+# assertion has to sit in front of the thing that actually runs the gates.
+if _pf=$(harness_gate_preflight 2>&1); then
+	_row gates "$HARNESS_GATES (all runnable)"
 else
 	_row gates "$HARNESS_GATES"
+	# Fed by redirect, not a pipe. A pipe would run the loop in a subshell and
+	# the _fails increments would be discarded with it.
+	while IFS= read -r _line; do
+		if [ -n "$_line" ]; then
+			_bad preflight "${_line#harness: }"
+		fi
+	done <<PF
+$_pf
+PF
 fi
 
 _orphan=
@@ -89,28 +102,7 @@ _row push "${HARNESS_PUSH:-no}"
 
 if [ "$_selftest" = yes ]; then
 	printf '\n  selftest (HEAD, not the working tree)\n'
-	_tmp=$(mktemp -d)
-	_wt="$_tmp/linked"
-	if git worktree add --detach "$_wt" HEAD >/dev/null 2>&1; then
-		if [ -x "$_wt/harness/bin/harness" ]; then
-			_here=$(harness_state_dir)
-			_there=$(cd "$_wt" && ./harness/bin/harness doctor --print-state-dir) ||
-				_there="(the linked worktree's harness failed)"
-			if [ "$_here" = "$_there" ]; then
-				_row "  state dir" "identical from a linked worktree"
-			else
-				_bad "  state dir" "root: $_here / linked: $_there"
-			fi
-		else
-			_bad "  worktree" "harness/ is not committed on HEAD yet"
-		fi
-		git worktree remove --force "$_wt" >/dev/null 2>&1 ||
-			_bad "  cleanup" "could not remove $_wt"
-		git worktree prune
-	else
-		_bad "  worktree" "could not create a throwaway worktree"
-	fi
-	rm -rf "$_tmp"
+	harness_selftest || _fails=$((_fails + 1))
 fi
 
 printf '\n'
