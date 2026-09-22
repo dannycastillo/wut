@@ -456,7 +456,7 @@ func TestResizeLeavesNothingBehind(t *testing.T) {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
 
-	session := "wut-resize-test"
+	session := fmt.Sprintf("wut-resize-test-%d", os.Getpid())
 	tmux := func(args ...string) string {
 		out, err := exec.Command("tmux", args...).Output()
 		if err != nil && args[0] != "kill-session" {
@@ -464,7 +464,6 @@ func TestResizeLeavesNothingBehind(t *testing.T) {
 		}
 		return string(out)
 	}
-	_ = exec.Command("tmux", "kill-session", "-t", session).Run()
 	t.Cleanup(func() { _ = exec.Command("tmux", "kill-session", "-t", session).Run() })
 
 	tmux("new-session", "-d", "-s", session, "-x", "80", "-y", "24")
