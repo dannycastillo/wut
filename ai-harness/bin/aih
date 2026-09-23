@@ -1,0 +1,54 @@
+#!/bin/sh
+# aih — one todo, one branch, one worktree; trunk merged by one verb.
+#
+# Resolves a verb to ai-harness/verbs/<verb>.sh and sources it. There is no verb
+# registry on purpose: adding a verb adds a file and edits nothing, so two
+# branches adding verbs never conflict.
+
+set -eu
+
+AI_HARNESS_HOME=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd -P)
+readonly AI_HARNESS_HOME
+
+# shellcheck source=/dev/null  # a glob cannot be followed statically
+for _lib in "$AI_HARNESS_HOME"/lib/*.sh; do . "$_lib"; done
+unset _lib
+
+AI_HARNESS_REPO=$(git rev-parse --show-toplevel 2>/dev/null) ||
+	die "$EX_FAIL" "not inside a git repository"
+readonly AI_HARNESS_REPO
+
+# Each worktree runs its own copy. Invoking one worktree's aih against
+# another's checkout would read the wrong .ai-harness.conf and act on the wrong
+# tree, so it is refused rather than guessed at.
+if [ "$AI_HARNESS_HOME" != "$AI_HARNESS_REPO/ai-harness" ]; then
+	die "$EX_FAIL" "$0 belongs to $(dirname -- "$AI_HARNESS_HOME"), but the current tree is $AI_HARNESS_REPO
+  use that tree's own copy, or the launcher aih doctor prints"
+fi
+
+[ -f "$AI_HARNESS_REPO/.ai-harness.conf" ] ||
+	die "$EX_FAIL" "no .ai-harness.conf in $AI_HARNESS_REPO — run ai-harness/install.sh"
+# shellcheck source=/dev/null  # per-project, by design
+. "$AI_HARNESS_REPO/.ai-harness.conf"
+
+: "${AI_HARNESS_PROJECT:?.ai-harness.conf must set AI_HARNESS_PROJECT}"
+: "${AI_HARNESS_TRUNK:?.ai-harness.conf must set AI_HARNESS_TRUNK}"
+: "${AI_HARNESS_WORKTREE_ROOT:?.ai-harness.conf must set AI_HARNESS_WORKTREE_ROOT}"
+
+verb=help
+if [ $# -gt 0 ]; then
+	verb=$1
+	shift
+fi
+case $verb in
+-h | --help) verb=help ;;
+esac
+
+verb_file="$AI_HARNESS_HOME/verbs/$verb.sh"
+[ -f "$verb_file" ] || die "$EX_USAGE" "unknown verb: $verb (try: aih help)"
+
+AI_HARNESS_VERB=$verb
+export AI_HARNESS_VERB
+
+# shellcheck source=/dev/null  # the verb is resolved at runtime
+. "$verb_file"

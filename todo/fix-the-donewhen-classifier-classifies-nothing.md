@@ -2,7 +2,7 @@
 
 - **Priority:** low
 - **Branch:** fix/the-donewhen-classifier-classifies-nothing
-- **Touches:** harness/lib/packet.sh
+- **Touches:** ai-harness/lib/packet.sh
 - **Blocked by:** —
 
 ## Goal
@@ -10,7 +10,7 @@ The judgment packet's `[from diff]` / `[needs running]` split either earns its
 fourteen lines of awk, or it goes.
 
 ## Why
-Run `harness_ig_boxes` over every open todo: **5 of 121 boxes** come back
+Run `ai_harness_ig_boxes` over every open todo: **5 of 121 boxes** come back
 `[from diff]`, and three of the five belong to one todo. Everything else
 defaults to `[needs running]`, which is the safe direction and very nearly the
 only direction.
@@ -54,16 +54,16 @@ Inverting the default — assume `[from diff]` unless a behavioural marker appea
 — is the one direction to refuse. A wrong `[needs running]` wastes a minute; a
 wrong `[from diff]` means a box is never checked and the merge claims otherwise.
 
-Whichever way it goes, `Harness-Donewhen` should stop being a literal — see
+Whichever way it goes, `AI-Harness-Donewhen` should stop being a literal — see
 `fix-the-harness-forgets-its-parks`, which owns `packet.sh` for that and will
 hold this todo in `plan` until it lands. The two are small; do them in order.
 
 ## Done when
 - [ ] Either the from-diff share across the backlog is materially higher than
-      5 of 121, measured by running `harness_ig_boxes` over `todo/*.md`, or
-      `harness_ig_boxes` is gone and the packet prints the boxes unlabelled
+      5 of 121, measured by running `ai_harness_ig_boxes` over `todo/*.md`, or
+      `ai_harness_ig_boxes` is gone and the packet prints the boxes unlabelled
 - [ ] No box is labelled `[from diff]` unless it names a static property of the
       tree — checked by hand against every box the change newly labels
 - [ ] `chore-tidy-the-scanner`'s five boxes are used as the fixture, since they
       are the first set a real run judged
-- [ ] `harness gate --full` green, `sh -n` clean
+- [ ] `aih gate --full` green, `sh -n` clean

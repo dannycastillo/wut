@@ -59,22 +59,22 @@ prefix of its most significant change.
 ### Before every commit
 
 ```sh
-harness gate --quick
+aih gate --quick
 ```
 
-It must pass. What it runs is declared in `.harness.conf` (ADR-09), so this
+It must pass. What it runs is declared in `.ai-harness.conf` (ADR-09), so this
 file names no language. Don't commit over a failure — fix it or report it. Say
 in your summary that it ran and what it said, so the check is visible rather
 than assumed.
 
-### Trunk is written only by `harness integrate`
+### Trunk is written only by `aih integrate`
 
 Two roles, and the session that writes a diff never reviews it (ADR-10):
 
-- A **worker** finishes by running `harness submit`. It never merges, never
+- A **worker** finishes by running `aih submit`. It never merges, never
   pushes, and never runs `git merge`.
-- A **reviewer** verifies the packet `harness integrate --next` prints and
-  finishes by running `harness integrate --continue` with a verdict. The verb
+- A **reviewer** verifies the packet `aih integrate --next` prints and
+  finishes by running `aih integrate --continue` with a verdict. The verb
   merges; the reviewer never does.
 
 `integrate` merges with `--no-ff`, so there is a merge commit even when `main`
@@ -85,22 +85,22 @@ changes rather than a list of keystrokes.
 
 Anything the verbs stop on — a park, a red gate, a path outside `Touches` — is
 a human's to resolve, and a human merging by hand is the one exception to the
-rule above. `harness log` marks such a merge `by hand`, because it carries no
+rule above. `aih log` marks such a merge `by hand`, because it carries no
 trailers.
 
 Never push a branch, merge, or force-push anything without being asked.
 
-<!-- harness:begin cksum=979730883 -->
+<!-- ai-harness:begin cksum=3071968440 -->
 ## Working in parallel
 
 Several agents work this backlog at once, one todo each, in separate
-worktrees, and trunk is written only by `harness integrate`. The mechanics and
-the verbs are in `harness/README.md`; each role's sequence is in
-`harness/roles/`. `harness run` works a set of todos unattended.
+worktrees, and trunk is written only by `aih integrate`. The mechanics and
+the verbs are in `ai-harness/README.md`; each role's sequence is in
+`ai-harness/roles/`. `aih run` works a set of todos unattended.
 
 `Touches` in a todo is a reservation on paths, and it is the only thing that
 decides what runs side by side.
-<!-- harness:end -->
+<!-- ai-harness:end -->
 
 ## Architecture decisions
 
@@ -320,14 +320,14 @@ you spot adjacent work, file a todo for it rather than folding it in.
 
 ### Picking one up
 
-1. `cd "$(harness claim <todo-stem>)"`. It cuts the branch and a worktree from
-   trunk and reserves `Touches`. `harness dispatch worker` takes the top
+1. `cd "$(aih claim <todo-stem>)"`. It cuts the branch and a worktree from
+   trunk and reserves `Touches`. `aih dispatch worker` takes the top
    runnable one instead.
 2. Read the todo file, and read in full any ADR it references.
-3. Do the work. `harness gate --quick` before every commit, and
-   `harness check` to see what `integrate` will say.
+3. Do the work. `aih gate --quick` before every commit, and
+   `aih check` to see what `integrate` will say.
 4. `git rm` the todo file as part of the final commit on the branch.
-5. Rebase onto trunk if it moved, then `harness submit`.
+5. Rebase onto trunk if it moved, then `aih submit`.
 
 Deleting the file on the branch means merging the work and clearing the backlog
 are the same event — there's no second step to forget, and no status field that

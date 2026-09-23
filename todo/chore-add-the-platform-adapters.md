@@ -2,7 +2,7 @@
 
 - **Priority:** low
 - **Branch:** chore/add-the-platform-adapters
-- **Touches:** harness/adapters/*, .claude/*
+- **Touches:** ai-harness/adapters/*, .claude/*
 - **Blocked by:** chore-retire-the-human-merge-gate
 
 ## Goal
@@ -17,12 +17,12 @@ being AI-agnostic.
 ## Notes
 
 Each adapter is a pointer and nothing more.
-`.claude/skills/harness-worker/SKILL.md` says to read `harness/roles/worker.md`
+`.claude/skills/ai-harness-worker/SKILL.md` says to read `ai-harness/roles/worker.md`
 and follow it; same shape for the reviewer. Both role docs exist once
 `chore-rename-the-integrator-to-reviewer` lands. Cursor gets
 `.cursor/rules/*.mdc` doing the same thing.
 
-The loop starts agents through `HARNESS_AGENT_CMD` with a one-line prompt, so
+The loop starts agents through `AI_HARNESS_AGENT_CMD` with a one-line prompt, so
 it needs no adapter at all. Adapters are for a human starting a role by hand
 in an editor session.
 

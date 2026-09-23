@@ -2,7 +2,7 @@
 
 - **Priority:** high
 - **Branch:** chore/add-ci
-- **Touches:** .github/workflows/ci.yml, .golangci.yml, README.md, .harness.conf
+- **Touches:** .github/workflows/ci.yml, .golangci.yml, README.md, .ai-harness.conf
 - **Blocked by:** —
 
 ## Goal
@@ -27,8 +27,8 @@ itself the same way, instead of each one being spot-checked by hand.
 | test | `go test -race ./...` | see below |
 | lint | `golangci-lint run` | |
 
-The `lint` gate is defined in `.harness.conf` but deliberately left out of
-`HARNESS_GATES`, because a declared gate whose tool is absent is a hard
+The `lint` gate is defined in `.ai-harness.conf` but deliberately left out of
+`AI_HARNESS_GATES`, because a declared gate whose tool is absent is a hard
 failure. Installing golangci-lint is what makes declaring it honest, so adding
 `lint` to that list belongs to this todo.
 
