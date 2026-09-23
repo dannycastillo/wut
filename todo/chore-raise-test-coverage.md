@@ -89,7 +89,7 @@ always true and reduces to `if err != nil`.
 It predates `fix/tmux-test-session-name` and was flagged by that branch's
 worker rather than folded in, correctly, since the todo did not declare it.
 Worse than redundant: it implies the helper handles kills, so a reader goes
-looking for a path that does not exist. Recorded as `Harness-Notes:` on
+looking for a path that does not exist. Recorded as `AI-Harness-Notes:` on
 `fc5e53d`.
 
 ## Done when

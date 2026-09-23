@@ -2,7 +2,7 @@
 
 - **Priority:** medium
 - **Branch:** fix/the-hand-merge-cleanup
-- **Touches:** harness/verbs/integrate.sh, harness/lib/integrate.sh, harness/verbs/abandon.sh
+- **Touches:** ai-harness/verbs/integrate.sh, ai-harness/lib/integrate.sh, ai-harness/verbs/abandon.sh
 - **Blocked by:** —
 
 ## Goal
@@ -10,7 +10,7 @@ A submission that reached trunk without `integrate` leaves the queue,
 without a human deleting files in the state directory.
 
 ## Why
-Every branch touching `harness/**`, `AGENTS.md` or `.harness.conf` parks
+Every branch touching `ai-harness/**`, `AGENTS.md` or `.ai-harness.conf` parks
 permanently and is resolved by a human merging it. That is by design and never
 changes, so the hand-merge is not an edge case — it is the only path the
 harness's own construction can take.
@@ -42,7 +42,7 @@ A submission that was hand-merged has its `head=` in trunk's history; a branch
 that was rebased or amended does not:
 
 ```sh
-git merge-base --is-ancestor "$(harness_kv_get "$_sub" head)" "$HARNESS_TRUNK"
+git merge-base --is-ancestor "$(ai_harness_kv_get "$_sub" head)" "$AI_HARNESS_TRUNK"
 ```
 
 True means the work landed and the entry is finished bookkeeping, not a
@@ -70,7 +70,7 @@ the registry lands first, clear the records here too.
 
 `fix-the-harness-forgets-its-parks` made parks durable through the merge. This
 is about a park that should never have been recorded. Its Touches overlap on
-`harness/lib/integrate.sh`, so the two cannot run together; that one has landed.
+`ai-harness/lib/integrate.sh`, so the two cannot run together; that one has landed.
 
 ## Done when
 - [ ] A branch merged by hand, then `integrate --next`: the entry is cleared and
@@ -80,4 +80,4 @@ is about a park that should never have been recorded. Its Touches overlap on
 - [ ] No step in the hand-merge path requires removing a file by hand
 - [ ] Exercised against a real hand-merged harness branch, since that is the
       only way this path is ever reached
-- [ ] `harness gate --full` green, `check --selftest` still thirteen of thirteen
+- [ ] `aih gate --full` green, `check --selftest` still thirteen of thirteen
