@@ -163,7 +163,7 @@ Coordination state lives in `$(git rev-parse --git-common-dir)/harness/`:
 
 - **POSIX sh only.** macOS ships bash 3.2.57, so no arrays and no `mapfile`,
   and a lifted copy may run under dash.
-- **No shell file over `HARNESS_SHELL_MAX_LINES` (120).** The `shellsize` gate
+- **No shell file over `HARNESS_SHELL_MAX_LINES` (400).** The `shellsize` gate
   enforces it. A total line budget was tried and dropped: it says nothing about
   whether any one file fits in your head, and it turns every addition into a
   negotiation.
