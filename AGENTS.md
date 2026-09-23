@@ -104,7 +104,7 @@ decides what runs side by side.
 ## Architecture decisions
 
 Decisions about the project's direction live in `docs/` as Architecture
-Decision Records — one file per decision, numbered in the order made.
+Decision Records — one file per decision, named by the date it was made.
 
 ### Read them before starting work
 
@@ -134,18 +134,17 @@ other.
 
 ### File shape
 
-`docs/adr-NN-short-kebab-title.md`, `NN` zero-padded. The number is assigned
-at merge, not by the author (ADR-08): two branches cannot race for one.
+`docs/adr-YYYY-MM-DD-short-kebab-title.md`, dated the day it is written.
+Two authors on one day pick different titles; the same title on the same day
+is the same path, which git reports as a conflict instead of merging silently.
+That is the whole reason for the date: sequential numbers were tried and two
+branches can each add the next one with no conflict at all.
 
-A draft is `docs/adr-draft-<short-kebab-title>.md`, headed
-`# ADR-DRAFT-<SHORT-KEBAB-TITLE>: Title`, with `**Status:** Proposed`. Cite it
-from other files by that token. `integrate` renames the file, rewrites the
-heading, status and date, and replaces the token wherever it appears. To
-supersede, write `**Superseded by:** ADR-DRAFT-<KEBAB>` in the old file and
-list that file in `Touches`.
+Refer to an ADR by its file name without the directory and extension. The
+first ten are numbered `ADR-01` to `ADR-10` and keep those names.
 
 ```markdown
-# ADR-NN: Title
+# ADR YYYY-MM-DD: Title
 
 - **Status:** Accepted
 - **Date:** YYYY-MM-DD
@@ -188,9 +187,10 @@ Never rewrite the Decision of an accepted ADR. A record you edit is no longer a
 record of what you decided — it's a record of what you currently think, and the
 code already tells you that.
 
-To change course, write a new ADR carrying `**Supersedes:** ADR-NN`, and add a
-`**Superseded by:** ADR-MM` line to the old one's status block. Adding that
-back-pointer is the only edit an accepted ADR ever takes.
+To change course, write a new ADR carrying `**Supersedes:** <old name>`, and
+add a `**Superseded by:** <new name>` line to the old one's status block.
+Adding that back-pointer is the only edit an accepted ADR ever takes. List the
+old file in `Touches`, so two branches superseding it serialize.
 
 ## Comments
 

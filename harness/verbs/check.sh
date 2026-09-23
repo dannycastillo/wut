@@ -28,10 +28,9 @@ _ckt_selftest() {
 	cd "$1" || return 1
 	git init -q
 	git symbolic-ref HEAD "refs/heads/$HARNESS_TRUNK"
-	mkdir todo docs src other
-	printf -- '- **Touches:** src/*, docs/*\n' >todo/chore-x.md
+	mkdir todo src other
+	printf -- '- **Touches:** src/*\n' >todo/chore-x.md
 	printf -- '- **Touches:** other/*\n' >todo/chore-y.md
-	printf '# ADR-07: A\n\n- **Status:** Accepted\n\n## Decision\nOne.\n\n## Consequences\nSome.\n' >docs/adr-07-a.md
 	printf 'rules\n' >AGENTS.md
 	printf 'a\n' >src/a && printf 'k\n' >other/k
 	printf 'one\ntwo\nthree\n' >src/a_test.go
@@ -39,11 +38,7 @@ _ckt_selftest() {
 	git -c commit.gpgsign=false commit -q -m 'chore: seed'
 
 	_ckt_branch; printf 'b\n' >src/a; _ckt_expect 'clean pass'
-	_ckt_branch; printf 'b\n' >docs/adr-07-b.md; _ckt_expect 'adr-duplicate stop'
 	_ckt_branch; printf 'more\n' >>AGENTS.md; _ckt_expect 'protected-path stop'
-	_ckt_branch; sed 's/^One\.$/Two./' docs/adr-07-a.md >docs/x && mv docs/x docs/adr-07-a.md; _ckt_expect 'adr-decision stop'
-	_ckt_branch; printf 'Later.\n' >>docs/adr-07-a.md; _ckt_expect 'clean pass'
-	_ckt_branch; printf '# ADR-DRAFT-%s: B\n' SELFTEST >docs/adr-draft-b.md; _ckt_expect 'clean pass'
 	_ckt_branch; git rm -q todo/chore-y.md; _ckt_expect 'todo-deleted stop'
 	_ckt_branch; printf 't.Skip("x")\n' >>src/a_test.go; _ckt_expect 'skip-added stop'
 	_ckt_branch; printf 'b\n' >src/a; _ckt_expect 'bad-subject stop' 'wip'

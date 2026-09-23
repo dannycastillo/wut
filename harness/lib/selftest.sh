@@ -1,6 +1,6 @@
 # The assertion the whole coordination layer rests on, checked automatically.
 #
-# ADR-07 puts state under --git-common-dir so every worktree sees one copy.
+# ADR-10 puts state under --git-common-dir so every worktree sees one copy.
 # That fails silently when it is wrong, and from the main worktree --git-dir,
 # --git-path and --git-common-dir all return ".git" — so a slip passes every
 # test run from the root and first appears once a second worker exists.

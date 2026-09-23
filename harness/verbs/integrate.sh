@@ -105,12 +105,6 @@ if ! git merge -q --no-ff --no-commit "$_branch" >&2; then
 	git merge --abort 2>/dev/null || git reset -q --hard "$_pre"
 	harness_ig_stop "$_stem" merge-conflict "$_branch does not merge onto $HARNESS_TRUNK — rebase and resubmit"
 fi
-# Drafts are numbered here, inside the lock, so the number cannot race
-# (ADR-08). The gate then runs on the tree that will actually land.
-if ! harness_adr_number_drafts || ! _adr=$(harness_adr_assert); then
-	git reset -q --hard "$_pre"
-	harness_ig_stop "$_stem" "${_adr%% *}" "${_adr#* }"
-fi
 if ! harness_ig_gate; then
 	git reset -q --hard "$_pre"
 	harness_ig_gate_stop "$_stem" gate-red-merge "both sides green, the merge red: a semantic conflict. $_branch is intact"

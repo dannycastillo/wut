@@ -5,8 +5,8 @@ One todo, one branch, one worktree. Trunk is written only by a merge.
 The harness lets several agents work one repo's backlog at once without
 landing in the same file. It is plain POSIX sh plus git, and nothing else.
 The repo's rules stay in `AGENTS.md`; the harness enforces them mechanically.
-Design: ADR-10 (a shell loop schedules two roles), ADR-08 (ADR numbering),
-ADR-09 (the gate lives in config).
+Design: ADR-10 (a shell loop schedules two roles) and ADR-09 (the gate lives
+in config).
 
 ## Status
 
@@ -156,13 +156,9 @@ harness working, not failing.
 Other hard stops, all by design: `harness/**`, `.harness.conf`, a
 `HARNESS_PROTECTED` path missing from `Touches`, an added test skip, a commit
 subject outside the four prefixes, a red trunk before the merge, a red gate
-after it, a dirty trunk checkout, and after numbering, an `ADR-DRAFT` token
-that survived or two ADRs with one number.
-
-A draft ADR (`docs/adr-draft-<kebab>.md`, ADR-08) is numbered by `integrate`
-after the merge and before the post-merge gate, inside the lock. The number
-is recomputed from the files present, which is what makes two drafts landing
-in either order safe.
+after it, and a dirty trunk checkout. Nothing in that list names a path that
+is not a todo, the harness itself, or `HARNESS_PROTECTED` from config: the
+harness knows nothing about the project's own conventions.
 
 ## Configuration
 

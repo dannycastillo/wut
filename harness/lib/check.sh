@@ -6,7 +6,7 @@
 # codes are reported and never stop.
 harness_codes() {
 	printf '%s\n' protected-path undeclared-path undeclared-path-collision todo-deleted \
-		todo-not-deleted skip-added bad-subject adr-decision adr-duplicate adr-draft \
+		todo-not-deleted skip-added bad-subject \
 		dirty-trunk merge-in-progress trunk-diverged gate-config gate-red-trunk escalated \
 		moved merge-conflict gate-red-merge merge-refused rejected behavioural-conflict \
 		needs-human cleanup-refused unknown
@@ -49,27 +49,11 @@ harness_check_holder() {
 	[ -n "${_ck_c:-}" ] && printf '%s\n' "$_ck_c"
 }
 
-# $3 at merge base $1, if Accepted, against branch $2. A deletion is one hunk
-# over every line, so it lands in the Decision too.
-harness_check_adr() {
-	_ck_old=$(git show "$1:$3" 2>/dev/null) || return 0
-	printf '%s\n' "$_ck_old" | grep -q '^- \*\*Status:\*\* Accepted' || return 0
-	_ck_r=$(printf '%s\n' "$_ck_old" | awk '/^## / && s && !e { e = NR }
-		$0 == "## Decision" { s = NR } END { if (s) print s, (e ? e : NR + 1) }')
-	git diff -U0 "$1" "$2" -- "$3" | awk -v r="${_ck_r:-0 0}" -v p="$3" 'BEGIN { split(r, b, " ") }
-		/^@@ / { split(substr($2, 2), h, ","); lo = h[1] + 0; n = (2 in h) ? h[2] : 1; hi = n ? lo + n - 1 : lo
-			if (lo < b[2] && hi >= b[1]) { printf "adr-decision %s changes its ## Decision at line %d\n", p, lo; exit } }'
-}
-
 harness_check_paths() {
 	_ck_todo=$(harness_todo_file "$1")
 	_ck_d=$(git diff --name-status --no-renames "$HARNESS_TRUNK...$2") ||
 		{ printf 'unknown git diff %s...%s failed\n' "$HARNESS_TRUNK" "$2" && return 0; }
 	printf '%s\n' "$_ck_d" | grep -qxF "D	$_ck_todo" || printf 'todo-not-deleted %s is still on the branch\n' "$_ck_todo"
-	{ git ls-tree --name-only "$HARNESS_TRUNK" docs/ | sed 's/^/T	/' && printf '%s\n' "$_ck_d"; } | awk -F'\t' '
-		$1 == "T" || $1 == "A" { f[$2] = 1 } $1 == "D" { delete f[$2] }
-		END { for (p in f) if (match(p, /^docs\/adr-[0-9]+-/)) { k = substr(p, 10, RLENGTH - 10); c[k]++; g[k] = g[k] " " p }
-			for (k in c) if (c[k] > 1) print "adr-duplicate ADR-" k " is" g[k] }'
 	printf '%s\n' "$_ck_d" | while IFS='	' read -r _ck_s _ck_p; do
 		_ck_code='' _ck_why=''
 		case $_ck_s:$_ck_p in
@@ -77,7 +61,6 @@ harness_check_paths() {
 		[!ADM]:*) _ck_code=unknown _ck_why=" is status $_ck_s, which check has no rule for" ;;
 		D:todo/*.md) _ck_code=todo-deleted ;;
 		*:AGENTS.md | *:.harness.conf | *:harness/*) _ck_code=protected-path ;;
-		[MD]:docs/adr-[0-9]*) harness_check_adr "$(git merge-base "$HARNESS_TRUNK" "$2")" "$2" "$_ck_p" ;;
 		esac
 		if [ -z "$_ck_code" ] && ! harness_check_declared "$_ck_p" "$3" "$_ck_s"; then
 			_ck_code=undeclared-path
@@ -92,8 +75,6 @@ harness_check_paths() {
 }
 
 harness_check_diff() {
-	# A draft on a branch is expected; integrate numbers it. adr-draft is
-	# raised after that, by harness_adr_assert, if a token survives.
 	git diff "$HARNESS_TRUNK...$2" | awk '/^\+\+\+ / { go = /\.go$/; next } !/^\+/ { next } go && /t\.Skip\(/ { k++ }
 		END { if (k) print "skip-added " k " added line(s) call t.Skip(" }'
 	git log --no-merges --format='%h %s' "$HARNESS_TRUNK..$2" | awk -v px=" $HARNESS_PREFIXES " '
