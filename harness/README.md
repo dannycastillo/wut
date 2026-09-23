@@ -5,7 +5,7 @@ One todo, one branch, one worktree. Trunk is written only by a merge.
 The harness lets several agents work one repo's backlog at once without
 landing in the same file. It is plain POSIX sh plus git, and nothing else.
 The repo's rules stay in `AGENTS.md`; the harness enforces them mechanically.
-Design: ADR-07 (worktrees, one integrator), ADR-08 (ADR numbering),
+Design: ADR-10 (a shell loop schedules two roles), ADR-08 (ADR numbering),
 ADR-09 (the gate lives in config).
 
 ## Status
@@ -13,12 +13,12 @@ ADR-09 (the gate lives in config).
 Partly built. `harness help` lists what your copy has.
 
 - **Built:** `claim`, `abandon`, `path`, `status`, `gate`, `doctor`, `unlock`,
-  `help`.
-- **Not built yet:** `plan`, `dispatch`, `submit`, `check`, `integrate`,
-  `review`, `next-review`, `pause`, `resume`, `unpark`, `log`, and the role
-  docs in `harness/roles/`. Each open todo named `chore-add-*` or
-  `chore-retire-the-human-merge-gate` carries some of them.
-- Until `integrate` lands, a human merges every branch, as `AGENTS.md` says.
+  `help`, `plan`, `dispatch`, `submit`, `check`, `integrate`, and both role
+  docs in `harness/roles/`.
+- **Not built yet:** `run`, `pause`, `resume`, `log`, and detached dispatch.
+  `chore-add-the-agent-registry` and `chore-add-the-run-loop` carry them.
+- Until `chore-retire-the-human-merge-gate` lands, `AGENTS.md` still says a
+  human merges every branch. `integrate` is what that human runs.
 
 ## Setup
 
@@ -35,18 +35,18 @@ harness doctor --selftest
 - A harness invoked from another worktree's tree refuses to run. It would read
   the wrong `.harness.conf`.
 
-## The three roles
+## The two roles
 
-A different session plays each role. The session that writes a diff neither
-reviews nor merges it.
+A different session plays each role. The session that writes a diff never
+reviews it. Each role ends its work by running one verb, and the verb does
+every write to shared state: no agent runs `git merge`.
 
-| Role       | Does                                                           | Never                                   |
-| ---------- | -------------------------------------------------------------- | --------------------------------------- |
-| worker     | claims one todo, works it in its own worktree, rebases, submits | merges, or edits outside its `Touches`  |
-| reviewer   | reads a submitted diff against its **Done when** and `AGENTS.md` | resolves conflicts, merges, reruns gates |
-| integrator | gates trunk, checks and merges one branch at a time, or parks it | rebases a branch, or cleans a dirty trunk |
+| Role     | Does                                                                  | Never                                          |
+| -------- | --------------------------------------------------------------------- | ---------------------------------------------- |
+| worker   | claims one todo, works it in its own worktree, rebases, `submit`s     | merges, or edits outside its `Touches`         |
+| reviewer | verifies a packet's **Done when**, then `integrate --continue`s       | rebases a branch, resolves a conflict, or cleans trunk |
 
-A human owns everything the three roles stop on: parks, stale locks, pauses.
+A human owns everything the two roles stop on: parks, stale locks, pauses.
 
 ## Verbs, by owner
 
@@ -57,16 +57,15 @@ A human owns everything the three roles stop on: parks, stale locks, pauses.
 | worker     | `claim <todo>`              | cuts the branch and worktree from trunk; prints the path      |
 |            | `path <todo>`               | prints a claim's worktree, for `cd "$(harness path <todo>)"`  |
 |            | `gate --quick` / `--full`   | runs the declared checks, one line each                       |
-|            | `submit` *                  | requires a clean tree and a green `gate --full`, then queues  |
+|            | `submit`                    | requires a clean tree and a green `gate --full`, then queues  |
 |            | `abandon <todo>`            | gives the claim back; keeps a dirty tree unless `--force`     |
-| integrator | `check` *                   | read-only diff check: paths against `Touches`, hard stops     |
-|            | `integrate` *               | baseline gate, merge, post-merge gate; or park                |
-| reviewer   | `next-review`, `review` *   | takes a queued review, writes the verdict                     |
+| reviewer   | `check`                     | read-only diff check: paths against `Touches`, hard stops     |
+|            | `integrate`                 | baseline gate, packet, merge, post-merge gate; or park        |
 | human      | `status`                    | claims and locks in flight                                    |
 |            | `doctor [--repair]`         | asserts the setup; `--repair` rebuilds claims from git        |
 |            | `unlock <name> --force`     | releases a lock whose holder is dead                          |
-|            | `plan`, `dispatch` *        | picks the runnable todos; claims one and starts an agent      |
-|            | `pause`, `resume`, `unpark`, `log` * | stops the queue, restarts it, requeues a park, reads history |
+|            | `plan`, `dispatch`          | says what can run and why; claims one and starts an agent     |
+|            | `run`, `pause`, `resume`, `log` * | works a set of todos unattended; stops it; restarts it; reads history |
 | anyone     | `help`                      | lists the verbs in this copy                                  |
 
 Exit codes: `0` ok, `1` failed, `2` usage, `3` paused, `4` the environment
@@ -74,27 +73,25 @@ cannot run the gate, `10` judgment needed.
 
 ## Running N workers
 
-Today, a human picks the todos and starts each worker:
+Until `run` lands, a human starts each worker:
 
 ```sh
-grep '\*\*Touches:\*\*' todo/*.md          # pick todos whose paths don't overlap
-cd "$(harness claim fix-something --agent w1)"
-# start an agent here with a one-line boot prompt:
-#   "You are a harness worker. Your todo is todo/fix-something.md.
-#    Read AGENTS.md, then the todo, and follow both."
+harness plan                               # what can run now, and why the rest cannot
+eval "$(harness dispatch worker)"          # claims the top runnable todo, starts the agent
 harness status                             # what is claimed, by whom, touching what
 ```
 
+`dispatch` starts `$HARNESS_AGENT_CMD` with a one-line boot prompt that ends
+with `harness submit`. With the command unset, it prints the `cd` and the
+prompt for you to run yourself.
+
 - `HARNESS_MAX_WORKERS` caps active claims. `claim` refuses past it.
 - Two racers on one todo: git's ref lock lets exactly one create the branch.
-- Two todos with overlapping `Touches`: **not caught yet.** Reading the
-  `Touches` lines is the human's job until `plan` exists.
+- Two todos with overlapping `Touches`: `claim` refuses the second while the
+  first is active, and `plan` names the path they meet on.
 - Gates in `HARNESS_EXCLUSIVE_GATES` hold a global resource. A lock serializes
   them across every worktree, so parallel workers queue instead of colliding.
 - A crashed worker keeps its claim. `harness abandon <todo>` releases it.
-- When `plan` and `dispatch` land: `harness dispatch worker` claims the
-  highest-priority runnable todo and starts `$HARNESS_AGENT_CMD` in it, or
-  prints the command when that is unset.
 
 ## Stop conditions, and one worked example
 
@@ -145,7 +142,7 @@ HARNESS_GATE_TOOLS_build="go"
   `HARNESS_GATE_TOOLS_<name>` list of what it needs on `PATH`.
 - A declared gate whose tool is missing stops the run with exit `4`. It is
   never skipped. A project without a tool declares fewer gates.
-- `.harness.conf` is a hard stop for the integrator. An agent cannot loosen the
+- `.harness.conf` is a hard stop in `check`. An agent cannot loosen the
   gate and merge the change.
 
 ## State

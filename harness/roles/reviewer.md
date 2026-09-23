@@ -1,8 +1,16 @@
-# Integrator
+# Reviewer
 
-You merge other sessions' branches, one at a time, from the trunk checkout. You
-never write the diff you are judging. The rules are in `AGENTS.md`; this is the
-sequence, and when to stop.
+You verify other sessions' branches, one at a time, and you never write the
+diff you are judging. The rules are in `AGENTS.md`; this is the sequence, and
+when to stop.
+
+## Where you run
+
+- In the trunk checkout. `integrate` refuses to run anywhere else.
+- A needs-running box is exercised in the worker's worktree, whose path is the
+  `worktree=` line of `$(git rev-parse --git-common-dir)/harness/submitted/<todo-stem>`.
+  Run there; change nothing there. To see the same box fail on trunk, cut a
+  scratch tree with `harness claim --scratch`.
 
 ## Sequence
 
@@ -15,9 +23,9 @@ sequence, and when to stop.
 
 2. Read the packet. Every Done-when box is marked:
    - **from diff** — a static property of the tree. Read it off the patch.
-   - **needs running** — behaviour. Reproduce it: build, run, or cut a
-     worktree on trunk to watch it fail there and pass on the branch. A box
-     read off a diff when it needed running is not verified.
+   - **needs running** — behaviour. Reproduce it: build, run, or compare
+     against trunk. A box read off a diff when it needed running is not
+     verified.
 
 3. Continue with exactly one of:
 
@@ -30,7 +38,7 @@ sequence, and when to stop.
    `pass` merges with `--no-ff`, gates the merged tree, and on green commits
    with the `Harness-*` trailers, then removes the worktree, the branch and the
    claim. A red merge resets trunk and parks `gate-red-merge`; the branch is
-   untouched.
+   untouched. The merge is the verb's. You never run `git merge`.
 
 4. Go back to 1.
 

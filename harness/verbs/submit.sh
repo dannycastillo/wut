@@ -1,4 +1,4 @@
-# submit — hand a finished branch to the integrator
+# submit — hand a finished branch to the reviewer
 #
 #   harness submit [--body <file>|-] [--note "<observation>"]... [--escalate "<reason>"]
 
@@ -82,10 +82,10 @@ fi
 	sed -n '/^park=/p' "$(harness_state_dir)/parked/$_stem" 2>/dev/null || :
 } >"$_tmp"
 
-# The entry is what the integrator polls for, so it lands last and whole.
+# The entry is what the reviewer polls for, so it lands last and whole.
 mv "$_tmp.body" "$_q/$_stem.body"
 mv "$_tmp" "$_q/$_stem"
 rm -f "$(harness_state_dir)/parked/$_stem"
 
-log "submit: $_stem queued for the integrator"
+log "submit: $_stem queued for the reviewer"
 [ -z "$_esc" ] || log "  escalated: $_esc — it will park for a human"
