@@ -7,7 +7,7 @@ the order to apply them in, and when to stop.
 
 1. Read `AGENTS.md`, your todo, and every ADR the todo cites.
 2. Work inside the worktree `harness claim` gave you. Run `harness gate --quick`
-   as you go, and `harness check` to see what the integrator's check will say.
+   as you go, and `harness check` to see what `integrate` will say.
 3. Commit and finish as `AGENTS.md` describes under **Picking one up**.
 4. If trunk has moved, rebase onto it yourself (ADR-07).
 5. `harness submit`, from the worktree:
@@ -29,7 +29,7 @@ the order to apply them in, and when to stop.
 
 ## After submitting
 
-The worktree belongs to the integrator. A clean merge removes it, the branch
+The worktree belongs to the reviewer. A clean merge removes it, the branch
 and the claim. A park leaves all three, with the code and detail in
 `$(git rev-parse --git-common-dir)/harness/parked/<todo-stem>`. Resubmitting
 clears the park.

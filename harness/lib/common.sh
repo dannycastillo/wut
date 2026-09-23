@@ -8,7 +8,7 @@ EX_FAIL=1
 EX_USAGE=2
 EX_PAUSED=3
 # The environment cannot run the gate, as distinct from the gate failing.
-# The integrator must not blame a branch for a misconfigured machine.
+# integrate must not blame a branch for a misconfigured machine.
 EX_CONFIG=4
 EX_JUDGE=10
 

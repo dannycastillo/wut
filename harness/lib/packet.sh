@@ -1,4 +1,4 @@
-# What the integrator reads before its verdict, and what the merge records.
+# What the reviewer reads before its verdict, and what the merge records.
 
 # Only a box that names a static property of the tree can be settled by reading
 # a patch. Anything that has to happen is behavioural, and the default.
@@ -55,7 +55,6 @@ harness_ig_message() {
 	printf 'Harness-Gate: baseline:ok merge:ok (%s)\n' "$HARNESS_GATES"
 	printf 'Harness-Check: %s\n' "$(harness_kv_get "$_ig_p" check || :)"
 	printf 'Harness-Donewhen: %s\n' "$(harness_kv_get "$_ig_p" verdict || :)"
-	printf 'Harness-Review: none (HARNESS_REVIEW=%s)\n' "${HARNESS_REVIEW:-never}"
 	sed -n 's/^park=/Harness-Parked: /p' "$_ig_sub"
 	sed -n 's/^note=/Harness-Notes: /p' "$_ig_sub"
 }

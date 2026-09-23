@@ -1,5 +1,5 @@
 #!/bin/sh
-# harness — one todo, one branch, one worktree; trunk merged by one integrator.
+# harness — one todo, one branch, one worktree; trunk merged by one verb.
 #
 # Resolves a verb to harness/verbs/<verb>.sh and sources it. There is no verb
 # registry on purpose: adding a verb adds a file and edits nothing, so two

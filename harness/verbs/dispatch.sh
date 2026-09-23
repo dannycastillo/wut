@@ -8,7 +8,7 @@ _usage="usage: harness dispatch worker [<todo-stem>] [--agent <name>]"
 [ $# -gt 0 ] || die "$EX_USAGE" "$_usage"
 case $1 in
 worker) shift ;;
-reviewer | integrator) die "$EX_USAGE" "dispatch: the $1 role does not exist yet" ;;
+reviewer) die "$EX_USAGE" "dispatch: the reviewer role arrives with chore-add-the-agent-registry" ;;
 *) die "$EX_USAGE" "$_usage" ;;
 esac
 
@@ -21,7 +21,7 @@ _stem=$(basename -- "$_wt")
 _prompt="You are a harness worker in this worktree. Your todo is todo/$_stem.md. \
 Read AGENTS.md first, then your todo, then follow both. harness gate --full must \
 be green before you finish. Do not merge and do not push: when Done when is \
-satisfied, stop and report what you did and how each box is met."
+satisfied, end with harness submit, then report what you did and how each box is met."
 
 _q() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 

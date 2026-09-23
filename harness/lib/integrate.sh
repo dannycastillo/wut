@@ -1,5 +1,5 @@
-# The integrator's mechanics. Everything here is deterministic, so that the
-# agent's verdict is the only judgment a merge contains.
+# The merge's mechanics. Everything here is deterministic, so that the
+# reviewer's verdict is the only judgment a merge contains.
 
 harness_ig_file() { printf '%s/%s\n' "$(harness_state_dir)" "$1"; }
 
