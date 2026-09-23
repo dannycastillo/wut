@@ -43,8 +43,31 @@ The duplicate-ADR assertion is the one check with no git backstop (ADR-08) —
 git reports no conflict there at all — so it gets a deliberate test rather than
 an incidental one.
 
+### The undeclared-path arm has never run
+
+`protected-path` is evaluated before `undeclared-path`, and every change to the
+harness's own source is a protected path. So on this repo, where every harness
+branch touches `harness/**`, the undeclared-path detection is always masked and
+has never executed.
+
+It was masked on the branch that introduced it: `chore/add-the-integrator`
+added `harness/lib/packet.sh` outside its own Touches, and `check` reported
+eight `protected-path` lines and never mentioned it. The worker caught that by
+reading AGENTS.md, not by running `check`.
+
+The ordering is correct — a protected path is a hard stop and reporting it
+first is right — so this is a verification gap, not a defect. Closing it needs
+a branch that does **not** touch `harness/**`: add a file outside a todo's
+declared Touches and confirm `check` returns `undeclared-path` naming it, and
+that it is a hard stop while no active claim holds the path and a
+`undeclared-path-collision` once one does.
+
+Do this deliberately rather than waiting for it to happen, since the arm that
+never runs is the arm that is wrong when it finally does.
+
 ## Done when
 - [ ] `check` returns each hard stop above with its reason code
+- [ ] `undeclared-path` is tripped deliberately on a branch outside `harness/**`, and once more against an active claim for `undeclared-path-collision`
 - [ ] Two hand-made `docs/adr-07-*.md` files fail `check` as `adr-duplicate`
 - [ ] A diff touching `AGENTS.md` fails as `protected-path`
 - [ ] A situation with no matching code returns `unknown` rather than passing
