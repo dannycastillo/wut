@@ -86,6 +86,9 @@ fi
 mv "$_tmp.body" "$_q/$_stem.body"
 mv "$_tmp" "$_q/$_stem"
 rm -f "$(harness_state_dir)/parked/$_stem"
+# A resubmission invalidates the last judgment, so it may have a reviewer again.
+rm -f "$(harness_agent_file "$_stem" reviewer)" "$(harness_agent_file "$_stem" reviewer).exit"
 
+harness_event "$_stem" worker submitted "$(git rev-parse --short HEAD)${_esc:+ escalated: $_esc}"
 log "submit: $_stem queued for the reviewer"
 [ -z "$_esc" ] || log "  escalated: $_esc — it will park for a human"

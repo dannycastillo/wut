@@ -114,6 +114,7 @@ printf 'todo=%s\nbranch=%s\nworktree=%s\ntouches=%s\nagent=%s\nclaimed=%s\nbase=
 	>"$(harness_claim_file "$_stem")"
 
 [ "$_barrier" != "$_stem" ] || rm -f "$_st/BARRIER"
+harness_event "$_stem" - claimed "$_branch by $_agent"
 harness_lock_release claim
 
 printf 'claim: %s on %s\n  touches  %s\n' "$_stem" "$_branch" "$_touches" >&2

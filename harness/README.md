@@ -15,8 +15,8 @@ Partly built. `harness help` lists what your copy has.
 - **Built:** `claim`, `abandon`, `path`, `status`, `gate`, `doctor`, `unlock`,
   `help`, `plan`, `dispatch`, `submit`, `check`, `integrate`, and both role
   docs in `harness/roles/`.
-- **Not built yet:** `run`, `pause`, `resume`, `log`, and detached dispatch.
-  `chore-add-the-agent-registry` and `chore-add-the-run-loop` carry them.
+- **Not built yet:** `run`, `pause` and `resume`. `chore-add-the-run-loop`
+  carries them.
 - Until `chore-retire-the-human-merge-gate` lands, `AGENTS.md` still says a
   human merges every branch. `integrate` is what that human runs.
 
@@ -65,7 +65,8 @@ A human owns everything the two roles stop on: parks, stale locks, pauses.
 |            | `doctor [--repair]`         | asserts the setup; `--repair` rebuilds claims from git        |
 |            | `unlock <name> --force`     | releases a lock whose holder is dead                          |
 |            | `plan`, `dispatch`          | says what can run and why; claims one and starts an agent     |
-|            | `run`, `pause`, `resume`, `log` * | works a set of todos unattended; stops it; restarts it; reads history |
+|            | `log [<todo>]`              | events and merge trailers, one timeline                       |
+|            | `run`, `pause`, `resume` *  | works a set of todos unattended; stops it; restarts it        |
 | anyone     | `help`                      | lists the verbs in this copy                                  |
 
 Exit codes: `0` ok, `1` failed, `2` usage, `3` paused, `4` the environment
@@ -83,7 +84,18 @@ harness status                             # what is claimed, by whom, touching 
 
 `dispatch` starts `$HARNESS_AGENT_CMD` with a one-line boot prompt that ends
 with `harness submit`. With the command unset, it prints the `cd` and the
-prompt for you to run yourself.
+prompt for you to run yourself. `--detach` starts it under `nohup` in its own
+process group, so it outlives the shell that started it, and records it:
+
+```sh
+harness dispatch worker --detach           # prints the pid
+harness dispatch reviewer --detach         # after an integrate --next that exited 10
+harness status                             # agents, alive or exited, and how long
+harness log fix-something                  # everything that happened to one todo
+```
+
+A headless agent needs whatever flag its CLI takes to act without prompting.
+That flag goes in `HARNESS_AGENT_CMD`, not in the harness.
 
 - `HARNESS_MAX_WORKERS` caps active claims. `claim` refuses past it.
 - Two racers on one todo: git's ref lock lets exactly one create the branch.
@@ -148,7 +160,15 @@ HARNESS_GATE_TOOLS_build="go"
 ## State
 
 Coordination state lives in `$(git rev-parse --git-common-dir)/harness/`:
-`claims/`, `lock/`, `tmp/`.
+`claims/`, `lock/`, `tmp/`, `submitted/`, `parked/`, `integrate/`, `agents/`,
+`log/` and `events`.
+
+- `agents/<todo>.<role>` records a detached agent: pid, command, start, log,
+  and once it ends, its exit code. While the record exists nothing dispatches
+  that todo again. It goes when the claim goes: a merge, or `abandon`.
+- `log/` holds each agent's output and is never cleaned by the harness.
+- `events` is one line per thing that happened. `harness log` joins it with
+  the merge trailers, which are the durable record.
 
 - One copy, shared by every worktree. Git never tracks it.
 - Git is the authority; the files annotate it.
