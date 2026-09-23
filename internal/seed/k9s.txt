@@ -1,32 +1,14 @@
-# launch or start k9s with context
-k9s --context CONTEXT_NAME
+# launch with a kubeconfig context
+k9s --context CONTEXT
 
-# launch in a specific namespace
+# launch in a namespace
 k9s -n NAMESPACE
 
-# view all namespaces
-0
+# launch across all namespaces
+k9s -A
 
-# jump to a resource (pods, svc, deploy, etc)
-: then RESOURCE
+# launch straight into a resource view
+k9s -c RESOURCE
 
-# filter current view
-/ then SEARCH_TERM
-
-# describe selected resource
-d
-
-# view logs of selected resource
-l
-
-# open a shell in selected pod
-s
-
-# delete selected resource
-ctrl + d
-
-# go back or clear filter
-esc
-
-# quit
-:q
+# launch read-only so nothing can be edited or deleted
+k9s --readonly

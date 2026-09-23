@@ -1,0 +1,23 @@
+# find files by name, ignoring case
+find DIR -iname "PATTERN"
+
+# find files modified in the last n days
+find DIR -type f -mtime -N
+
+# find files modified in the last n minutes
+find DIR -type f -mmin -N
+
+# find files larger than 100 mb
+find DIR -type f -size +100M
+
+# find and delete files matching a pattern
+find DIR -type f -name "PATTERN" -delete
+
+# run a command on each file found
+find DIR -type f -name "PATTERN" -exec COMMAND {} \;
+
+# find files, skipping a directory
+find . -path ./node_modules -prune -o -type f -name "PATTERN" -print
+
+# count files under a directory
+find DIR -type f | wc -l

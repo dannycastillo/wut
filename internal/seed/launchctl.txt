@@ -1,0 +1,11 @@
+# list loaded services with pid and last exit status
+launchctl list
+
+# load a launch agent plist and start it
+launchctl load FILE
+
+# unload a launch agent plist
+launchctl unload FILE
+
+# restart a user service by its label
+launchctl kickstart -k gui/$(id -u)/NAME

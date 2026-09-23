@@ -1,0 +1,20 @@
+# pretty print json
+jq . FILE
+
+# extract a field
+jq '.KEY' FILE
+
+# extract a field from each element of an array
+jq '.[].KEY' FILE
+
+# print raw strings without quotes
+jq -r '.KEY' FILE
+
+# keep the array elements where a field has a value
+jq '.[] | select(.KEY == "VALUE")' FILE
+
+# pick a few fields from each element into a new object
+jq '.[] | {name, id}' FILE
+
+# convert an array to csv rows
+jq -r '.[] | [.name, .id] | @csv' FILE

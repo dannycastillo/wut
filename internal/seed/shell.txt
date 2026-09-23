@@ -1,26 +1,23 @@
-# Navigate to end or start of line
-cmd + right or cmd + left
-
-# Navigate to next word or last word (Navigate back or forward words)
-option + right or option + left
-
-# Clear line
-ctl + u
-
-# Clear from cursor to end of line
-ctl + k
-
-# Clear screen
-ctl + l
-
-# Search command history
-ctl + r
-
-# Repeat last command
+# repeat last command
 !!
 
-# Repeat last command with sudo
+# repeat last command with sudo
 sudo !!
 
-# check system disk use
-df -h /System/Volumes/Data
+# show the exit code of the last command
+echo $?
+
+# send stdout and stderr to a file
+COMMAND > FILE 2>&1
+
+# write output to a file and still see it
+COMMAND | tee FILE
+
+# run a command once per line of a file
+cat FILE | xargs -I {} COMMAND {}
+
+# run a command every n seconds
+while true; do clear; COMMAND; sleep N; done
+
+# count the unique lines of a file, most common first
+sort FILE | uniq -c | sort -rn

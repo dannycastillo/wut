@@ -1,53 +1,68 @@
-# Show working tree status
-git status
-
-# Show unstaged changes
-git diff
-
-# Show staged changes
-git diff --staged
-
-# Stage all changes
-git add -A
-
-# Commit with message
-git commit -m "MESSAGE"
-
-# Amend last commit without changing message
+# amend last commit without changing message
 git commit --amend --no-edit
 
-# Compact one-line log with graph
+# compact one-line log with graph
 git log --oneline --graph --decorate
 
-# Create and switch to new branch
-git switch -c BRANCH_NAME
+# show the history of one file, including renames
+git log --follow -p -- FILE
 
-# Switch to existing branch
-git switch BRANCH_NAME
+# find the commits that added or removed a string
+git log -S "PATTERN" --oneline
 
-# List local branches
-git branch
+# switch back to the previous branch
+git switch -
 
-# Delete local branch
-git branch -d BRANCH_NAME
+# force delete a local branch that was never merged
+git branch -D BRANCH
 
-# Pull with rebase
+# pull with rebase
 git pull --rebase
 
-# Push and set upstream
-git push -u origin BRANCH_NAME
+# fetch and drop remote branches that no longer exist
+git fetch --prune
 
-# Stash changes
-git stash
+# push and set upstream
+git push -u origin BRANCH
 
-# Apply and drop latest stash
+# force push without overwriting anyone else's commits
+git push --force-with-lease
+
+# stash including untracked files, with a message
+git stash push -u -m "MESSAGE"
+
+# apply and drop latest stash
 git stash pop
 
-# Discard changes to a file
-git restore FILE
-
-# Unstage a file
+# unstage a file
 git restore --staged FILE
 
-# Undo last commit but keep changes
+# restore a file as it was in a commit
+git restore --source COMMIT FILE
+
+# undo last commit but keep changes
 git reset --soft HEAD~1
+
+# discard every uncommitted change
+git reset --hard HEAD
+
+# delete untracked files and directories
+git clean -fd
+
+# rewrite the last n commits interactively
+git rebase -i HEAD~N
+
+# apply one commit from another branch
+git cherry-pick COMMIT
+
+# stop tracking a file but keep it on disk
+git rm --cached FILE
+
+# tag a release and push the tag
+git tag -a TAG -m "MESSAGE" && git push origin TAG
+
+# list every ref head has pointed at, to recover lost commits
+git reflog
+
+# check out a branch in a separate directory
+git worktree add DIR BRANCH

@@ -1,0 +1,23 @@
+# download a file, keeping its name and following redirects
+curl -LO URL
+
+# show only the response headers
+curl -sI URL
+
+# show request and response headers along with the body
+curl -v URL
+
+# post json
+curl -X POST -H "Content-Type: application/json" -d '{"key": "value"}' URL
+
+# send a bearer token
+curl -H "Authorization: Bearer TOKEN" URL
+
+# print only the http status code
+curl -s -o /dev/null -w "%{http_code}\n" URL
+
+# time each phase of the request
+curl -s -o /dev/null -w "dns %{time_namelookup}s connect %{time_connect}s ttfb %{time_starttransfer}s total %{time_total}s\n" URL
+
+# fail on http errors, retry, and stay quiet except for errors
+curl -fsSL --retry 3 URL

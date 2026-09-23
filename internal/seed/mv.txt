@@ -1,17 +1,8 @@
-# Move or rename a file
-mv OLD_NAME NEW_NAME
+# move without overwriting existing files
+mv -n SRC DST
 
-# Move a file into a directory
-mv FILE DIR/
+# move, asking before overwriting
+mv -i SRC DST
 
-# Move multiple files into a directory
-mv FILE_1 FILE_2 DIR/
-
-# Move without overwriting existing files
-mv -n FILE DIR/
-
-# Prompt before overwriting
-mv -i FILE DIR/
-
-# Show each file as it is moved
-mv -v FILE DIR/
+# move, printing each file as it goes
+mv -v SRC DST

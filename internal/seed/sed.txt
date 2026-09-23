@@ -1,0 +1,14 @@
+# replace text in a file in place (macos sed needs the empty suffix)
+sed -i '' 's/PATTERN/REPLACEMENT/g' FILE
+
+# replace text in a file in place (linux)
+sed -i 's/PATTERN/REPLACEMENT/g' FILE
+
+# delete the lines matching a pattern
+sed '/PATTERN/d' FILE
+
+# delete blank lines
+sed '/^$/d' FILE
+
+# strip trailing whitespace in place (macos)
+sed -i '' 's/[[:space:]]*$//' FILE

@@ -1,0 +1,26 @@
+# look up a domain, answer only
+dig +short DOMAIN
+
+# look up one record type (a, aaaa, mx, txt, ns, cname)
+dig +short DOMAIN TYPE
+
+# look up a domain on a specific dns server
+dig @8.8.8.8 DOMAIN
+
+# reverse look up an ip
+dig -x IP
+
+# ping a host a fixed number of times
+ping -c N HOST
+
+# test whether a tcp port is open
+nc -vz HOST PORT
+
+# show your public ip
+curl -s https://ifconfig.me
+
+# show your local ip on the primary interface
+ipconfig getifaddr en0
+
+# flush the dns cache (macos)
+sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder

@@ -1,0 +1,17 @@
+# extract an archive into a directory
+tar -xzf ARCHIVE -C DIR
+
+# extract any tar (gz, bz2 and xz are detected) into the current directory
+tar -xf ARCHIVE
+
+# extract, dropping the archive's top-level directory
+tar -xzf ARCHIVE --strip-components=1 -C DIR
+
+# list the contents without extracting
+tar -tzf ARCHIVE
+
+# create a gzipped archive of a directory
+tar -czf NAME.tar.gz DIR
+
+# create an archive, skipping a directory
+tar -czf NAME.tar.gz --exclude=node_modules DIR

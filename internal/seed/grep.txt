@@ -1,0 +1,20 @@
+# search recursively, ignoring case, with line numbers
+grep -rin "PATTERN" DIR
+
+# list only the files that match
+grep -rl "PATTERN" DIR
+
+# search with three lines of context around each match
+grep -rn -C 3 "PATTERN" DIR
+
+# search, skipping a directory
+grep -rn --exclude-dir=node_modules "PATTERN" DIR
+
+# search only files with one extension
+grep -rn --include="*.go" "PATTERN" DIR
+
+# match a whole word only
+grep -rnw "PATTERN" DIR
+
+# search for a fixed string, not a regex
+grep -rnF "PATTERN" DIR

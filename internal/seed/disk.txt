@@ -1,11 +1,14 @@
 # check size of a directory
 du -sh DIR
 
-# check computer disk use
-df -h /System/Volumes/Data
-
-# show all mounted filesystems
-df -h
-
 # list largest items in current directory
 du -sh * | sort -rh | head -n 10
+
+# show sizes one directory level deep
+du -h -d 1 DIR
+
+# show free space on the main volume (macos)
+df -h /System/Volumes/Data
+
+# find the largest files under a directory
+find DIR -type f -size +100M -exec ls -lh {} + | sort -k5 -rh | head -n 10

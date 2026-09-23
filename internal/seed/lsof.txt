@@ -1,0 +1,8 @@
+# show which process is listening on a port
+lsof -nP -iTCP:PORT -sTCP:LISTEN
+
+# list every listening tcp port and its process
+lsof -nP -iTCP -sTCP:LISTEN
+
+# list the files a process has open
+lsof -p PID

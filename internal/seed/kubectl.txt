@@ -1,0 +1,68 @@
+# list pods in every namespace with node and ip
+kubectl get pods -A -o wide
+
+# watch pods as they change
+kubectl get pods -w
+
+# describe a pod, events at the bottom
+kubectl describe pod POD
+
+# follow logs of a pod
+kubectl logs -f POD
+
+# logs of one container in a multi-container pod
+kubectl logs POD -c CONTAINER
+
+# logs of the previous, crashed instance of a pod
+kubectl logs POD --previous
+
+# follow logs from every pod with a label
+kubectl logs -f -l KEY=VALUE
+
+# open a shell in a pod
+kubectl exec -it POD -- sh
+
+# forward a local port to a pod (local:pod)
+kubectl port-forward POD PORT:PORT
+
+# forward a local port to a service (local:service)
+kubectl port-forward svc/SERVICE PORT:PORT
+
+# switch context
+kubectl config use-context CONTEXT
+
+# set the default namespace for the current context
+kubectl config set-context --current --namespace=NAMESPACE
+
+# apply a manifest
+kubectl apply -f FILE
+
+# preview what applying a manifest would change
+kubectl diff -f FILE
+
+# rolling restart of a deployment
+kubectl rollout restart deployment/DEPLOYMENT
+
+# wait for a rollout to finish
+kubectl rollout status deployment/DEPLOYMENT
+
+# roll a deployment back to its previous revision
+kubectl rollout undo deployment/DEPLOYMENT
+
+# scale a deployment
+kubectl scale deployment/DEPLOYMENT --replicas=N
+
+# get a resource as yaml
+kubectl get RESOURCE NAME -o yaml
+
+# recent events, oldest first
+kubectl get events --sort-by=.metadata.creationTimestamp
+
+# decode one key of a secret
+kubectl get secret NAME -o jsonpath='{.data.KEY}' | base64 -d
+
+# force delete a pod stuck terminating
+kubectl delete pod POD --grace-period=0 --force
+
+# drain a node for maintenance
+kubectl drain NODE --ignore-daemonsets --delete-emptydir-data
