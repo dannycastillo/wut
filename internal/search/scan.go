@@ -49,15 +49,15 @@ func scanFile(src snippetSource, query Query, ch chan<- Result) error {
 
 	for scanner.Scan() {
 
-		matches := scanChunk(query, scanner.Text())
-
-		for _, v := range matches {
-			// The one place that holds both the results and the file they came
-			// from. scanChunk is about text, not where the text lives.
-			v.FromUser = src.user
-			ch <- v
+		match, ok := scanChunk(query, scanner.Text())
+		if !ok {
+			continue
 		}
 
+		// The one place that holds both the result and the file it came
+		// from. scanChunk is about text, not where the text lives.
+		match.FromUser = src.user
+		ch <- match
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -67,9 +67,7 @@ func scanFile(src snippetSource, query Query, ch chan<- Result) error {
 	return nil
 }
 
-func scanChunk(query Query, chunk string) []Result {
-	var matches []Result
-
+func scanChunk(query Query, chunk string) (Result, bool) {
 	// Scoring System
 	// Direct Match = 1000
 	// Word Match = 500 + 5 per matching word
@@ -77,30 +75,30 @@ func scanChunk(query Query, chunk string) []Result {
 	// Direct Match
 	if strings.Contains(chunk, query.Joined) {
 		score := 1000
-		matches = append(matches, buildMatch(chunk, score))
-	} else {
-		// Word Match
-		wordMatches := countMatches(strings.Fields(chunk), query.Split)
-
-		if wordMatches > 0 {
-			score := 500 + (wordMatches * 5)
-			matches = append(matches, buildMatch(chunk, score))
-		}
+		return buildMatch(chunk, score), true
 	}
 
-	return matches
+	// Word Match
+	wordMatches := countMatches(strings.Fields(chunk), query.Split)
+
+	if wordMatches > 0 {
+		score := 500 + (wordMatches * 5)
+		return buildMatch(chunk, score), true
+	}
+
+	return Result{}, false
 }
 
-func countMatches(slice1, slice2 []string) int {
+func countMatches(chunkWords, queryWords []string) int {
 	// Step 1: Populate a map with items from the first slice
 	seen := make(map[string]bool)
-	for _, item := range slice1 {
+	for _, item := range chunkWords {
 		seen[item] = true
 	}
 
 	// Step 2: Loop through the second slice and count matches
 	matchCount := 0
-	for _, item := range slice2 {
+	for _, item := range queryWords {
 		if seen[item] {
 			matchCount++
 			// Optional: Delete the item if you only want to count unique matches
