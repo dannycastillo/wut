@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-21
+- **Superseded by:** ADR-10
 
 ## Context
 `todo/` holds thirteen open items and the repo has one maintainer. Three rules

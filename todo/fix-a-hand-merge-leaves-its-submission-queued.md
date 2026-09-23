@@ -6,7 +6,7 @@
 - **Blocked by:** —
 
 ## Goal
-A submission that reached trunk without the integrator leaves the queue,
+A submission that reached trunk without `integrate` leaves the queue,
 without a human deleting files in the state directory.
 
 ## Why
@@ -59,6 +59,12 @@ human has to remember is a step the harness has not automated.
 finished*. It should refuse, or at least warn, when `submitted/<stem>` exists —
 today it silently leaves the item queued while destroying the branch the queue
 entry points at, which is how the false park gets created in the first place.
+
+### When the registry lands
+
+`chore-add-the-agent-registry` adds `agents/<stem>.*` records that are removed
+wherever a claim is. The landed arm this todo adds is one of those places; if
+the registry lands first, clear the records here too.
 
 ### Not to be confused with
 

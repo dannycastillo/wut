@@ -20,7 +20,7 @@ The first real integration run showed the cost. All five boxes of
 "`countMatches`'s parameters are named for their contents" and "`scanChunk`'s
 return type expresses zero-or-one" — two static properties of the tree,
 readable from the patch in the time it takes to read the label telling you not
-to. A classifier that is right but silent costs the integrator the work it was
+to. A classifier that is right but silent costs the reviewer the work it was
 written to save.
 
 ## Notes
@@ -46,7 +46,7 @@ doc" (`chore-trim-the-comments`), and both scanner boxes above.
   plus `is named|expresses|has|each have|is gone|is absent`. Additive, testable
   against the 121 boxes now on record, and it can only ever be wrong in the
   direction of asking for more work.
-- **Delete it.** Print the boxes plainly and let the integrator judge which need
+- **Delete it.** Print the boxes plainly and let the reviewer judge which need
   running, which is what the packet's own header already instructs. Removes the
   whole function and the risk below.
 
