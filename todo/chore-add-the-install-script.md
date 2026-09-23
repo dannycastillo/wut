@@ -1,13 +1,12 @@
-# chore: add the install script and name the tool
+# chore: add the install script
 
 - **Priority:** medium
 - **Branch:** chore/add-the-install-script
-- **Touches:** harness/*, .harness.conf, AGENTS.md, .claude/*
-- **Blocked by:** chore-retire-the-human-merge-gate, chore-add-the-platform-adapters
+- **Touches:** ai-harness/*, .ai-harness.conf, AGENTS.md, .claude/*
+- **Blocked by:** chore-rename-the-harness-to-ai-harness, chore-add-the-platform-adapters
 
 ## Goal
-The harness installs into a repo that has never seen it, and carries a name
-that is not a generic word.
+`ai-harness` installs into a repo that has never seen it.
 
 ## Why
 Lifting into other projects is the point; this repo is the test fixture. Max
@@ -16,18 +15,19 @@ empties in a few sessions — the harness does not pay for itself here alone.
 
 ## Notes
 
-### Rename first
+### The name is settled
 
-`harness` squats a generic name in an unowned `$GIT_DIR` namespace (ADR-07). It
-is cheap to rename with one consumer and annoying with two, so it happens here:
-the binary, the config file, the state directory, the `Harness-*` trailers, the
-role docs and the adapters all move together.
+`ai-harness` is the project, `aih` is the command, and every file, variable,
+trailer and marker follows the project; the table and the launcher are in
+chore-rename-the-harness-to-ai-harness, which lands first. This todo only
+installs what that one names.
 
 ### install.sh
 
-Copies the tree, detects the gate and writes the config, inserts the
+Copies the `ai-harness/` tree, detects the gate and writes the config, inserts the
 marker-delimited AGENTS.md block (or creates AGENTS.md from the template),
-installs the hooks into the shared common dir, and wires a named adapter.
+installs the launcher if needed, and wires a named adapter. It installs no
+git hooks (adr-2026-09-23-the-harness-installs-no-git-hooks).
 
 Detection, in order of preference: `go.mod`; `package.json` scripts that
 actually exist; `Cargo.toml`; `pyproject.toml` tools that are actually declared;
@@ -54,8 +54,8 @@ Into a scratch repo with no AGENTS.md, and into one with an unrelated AGENTS.md
 that must come back unharmed.
 
 ## Done when
-- [ ] The tool has a distinctive name, applied everywhere including the state
-      directory and the commit trailers
+- [ ] It installs the launcher into `~/.local/bin` when no `aih` is on PATH,
+      and leaves an existing one alone
 - [ ] `install.sh` produces a working harness in a scratch Go repo
 - [ ] In a repo it cannot classify, it produces an empty gate and a `doctor`
       that fails with a readable reason
