@@ -209,7 +209,7 @@ Coordination state lives in `$(git rev-parse --git-common-dir)/ai-harness/`:
 
 - One copy, shared by every worktree. Git never tracks it.
 - Git is the authority; the files annotate it.
-  `rm -rf .git/harness && aih doctor --repair` is safe.
+  `rm -rf .git/ai-harness && aih doctor --repair` is safe.
 - A stale lock is reported, never stolen. `aih unlock` is manual on purpose.
 - The durable record will be the merge commits' `AI-Harness-*` trailers.
 
@@ -223,7 +223,7 @@ Coordination state lives in `$(git rev-parse --git-common-dir)/ai-harness/`:
   negotiation.
 - **`shellcheck -s sh` clean.** The `shellcheck` gate enforces it. Each
   suppression carries its reason inline.
-- **Libraries only define functions.** `bin/harness` sources `lib/*.sh` in glob
+- **Libraries only define functions.** `bin/aih` sources `lib/*.sh` in glob
   order, so anything that runs at source time runs in that order too.
 - **No verb registry.** A verb is a file in `ai-harness/verbs/`, and `help` globs
   the directory. Adding a verb edits nothing, so two branches adding verbs do

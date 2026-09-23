@@ -75,7 +75,7 @@ ai_harness_ig_stop() {
 }
 ai_harness_ig_gate() {
 	_ig_rc=0
-	"$AI_HARNESS_HOME/bin/harness" gate --full >&2 || _ig_rc=$?
+	"$AI_HARNESS_HOME/bin/aih" gate --full >&2 || _ig_rc=$?
 	[ "$_ig_rc" -eq 0 ]
 }
 ai_harness_ig_gate_stop() {

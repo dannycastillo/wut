@@ -24,7 +24,7 @@ _ev="$(ai_harness_state_dir)/events"
 	TZ=UTC git log --first-parent --merges --date=format-local:'%Y-%m-%dT%H:%M:%SZ' \
 		--format='%H %cd %h %s' "$AI_HARNESS_TRUNK" 2>/dev/null |
 		while read -r _h _d _short _subj; do
-			_tr=$(git show -s --format=%B "$_h" | git interpret-trailers --parse | grep '^Harness-' || :)
+			_tr=$(git show -s --format=%B "$_h" | git interpret-trailers --parse | grep '^AI-Harness-' || :)
 			_todo=$(printf '%s\n' "$_tr" | sed -n 's#^AI-Harness-Todo: todo/\(.*\)\.md$#\1#p')
 			if [ -n "$_todo" ]; then
 				_how='by integrate'

@@ -28,8 +28,9 @@ ai_harness_event() {
 #   </dev/null   a job in its own group reading the terminal stops on SIGTTIN.
 #   the wrapper  a detached process's exit status is unreadable from any other
 #                shell, so the wrapper writes it to a file itself.
-#   PATH         the prompt says aih; the agent must find this tree's copy
-#                whether or not the machine has a launcher.
+#   PATH         the prompt says aih. The agent runs in its worktree, whose
+#                own copy is the only one that will serve it, so that copy
+#                goes first whether or not the machine has a launcher.
 ai_harness_agent_spawn() {
 	_sp_rec=$(ai_harness_agent_file "$2" "$1")
 	_sp_log=$(ai_harness_agent_log "$2" "$1")
@@ -37,7 +38,7 @@ ai_harness_agent_spawn() {
 	mkdir -p "$(dirname -- "$_sp_rec")" "$(dirname -- "$_sp_log")"
 	rm -f "$_sp_rec.exit"
 	# shellcheck disable=SC2086,SC2016  # the command may carry its own arguments; the wrapper's shell expands the quotes
-	_sp_pid=$(set -m; PATH="$AI_HARNESS_HOME/bin:$PATH" nohup sh -c 'l=$1; shift; "$@" >"$l" 2>&1; printf "%s\n" "$?" >"$0.exit"' \
+	_sp_pid=$(set -m; PATH="$PWD/ai-harness/bin:$PATH" nohup sh -c 'l=$1; shift; "$@" >"$l" 2>&1; printf "%s\n" "$?" >"$0.exit"' \
 		"$_sp_rec" "$_sp_log" $AI_HARNESS_AGENT_CMD "$3" </dev/null >/dev/null 2>&1 & printf '%s\n' "$!")
 	{
 		printf 'role=%s\nstem=%s\npid=%s\n' "$1" "$2" "$_sp_pid"

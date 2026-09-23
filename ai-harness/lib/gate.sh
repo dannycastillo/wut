@@ -1,6 +1,6 @@
 # Gate preconditions.
 #
-# Libraries here may only DEFINE functions: bin/harness sources lib/*.sh in
+# Libraries here may only DEFINE functions: bin/aih sources lib/*.sh in
 # glob order, so anything running at source time would run in that order too.
 
 # The tools a gate needs, or nothing when the gate declares none.

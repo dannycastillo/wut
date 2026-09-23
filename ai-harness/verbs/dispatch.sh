@@ -30,7 +30,7 @@ worker)
 	case ${1:-} in
 	"" | -*) set -- --next "$@" ;;
 	esac
-	_wt=$("$AI_HARNESS_HOME/bin/harness" claim "$@") || exit $?
+	_wt=$("$AI_HARNESS_HOME/bin/aih" claim "$@") || exit $?
 	_stem=$(basename -- "$_wt")
 	_prompt="You are an AI Harness worker in this worktree. Your todo is todo/$_stem.md. \
 Read AGENTS.md first, then your todo, then follow both. aih gate --full must \

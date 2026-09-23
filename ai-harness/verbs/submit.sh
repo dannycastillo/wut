@@ -64,7 +64,7 @@ if grep -q '^---' "$_tmp.body"; then
 	die "$EX_USAGE" "submit: the body has a line starting ---, which would hide the merge's trailers"
 fi
 
-if ! "$AI_HARNESS_HOME/bin/harness" gate --full; then
+if ! "$AI_HARNESS_HOME/bin/aih" gate --full; then
 	rm -f "$_tmp.body"
 	die "$EX_FAIL" "submit: gate --full is red — not submitted"
 fi

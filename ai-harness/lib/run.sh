@@ -69,7 +69,7 @@ ai_harness_run_dispatch() {
 	[ ! -f "$(ai_harness_state_dir)/PAUSED" ] || return 0
 	while [ "$(ai_harness_claim_count)" -lt "$AI_HARNESS_MAX_WORKERS" ]; do
 		_rd_s=$(ai_harness_run_next) || return 0
-		"$AI_HARNESS_HOME/bin/harness" dispatch worker "$_rd_s" --agent "${AI_HARNESS_AGENT:-loop}" --detach >/dev/null || {
+		"$AI_HARNESS_HOME/bin/aih" dispatch worker "$_rd_s" --agent "${AI_HARNESS_AGENT:-loop}" --detach >/dev/null || {
 			log "run: dispatch of $_rd_s failed; not retried this tick"
 			return 0
 		}
@@ -97,14 +97,14 @@ ai_harness_run_judge() {
 			printf 'integrate stopped mid-%s on %s; the pending file needs a human\n' "$(ai_harness_kv_get "$_rj_p" phase)" "$_rj_stem"
 			return 1
 		}
-		"$AI_HARNESS_HOME/bin/harness" dispatch reviewer --detach >/dev/null || log "run: could not dispatch a reviewer for $_rj_stem"
+		"$AI_HARNESS_HOME/bin/aih" dispatch reviewer --detach >/dev/null || log "run: could not dispatch a reviewer for $_rj_stem"
 		return 0
 	fi
 	[ -n "$(ai_harness_ig_oldest)" ] || return 0
 	_rj_rc=0
-	"$AI_HARNESS_HOME/bin/harness" integrate --next >/dev/null 2>&1 || _rj_rc=$?
+	"$AI_HARNESS_HOME/bin/aih" integrate --next >/dev/null 2>&1 || _rj_rc=$?
 	case $_rj_rc in
-	"$EX_JUDGE") "$AI_HARNESS_HOME/bin/harness" dispatch reviewer --detach >/dev/null || log "run: could not dispatch a reviewer" ;;
+	"$EX_JUDGE") "$AI_HARNESS_HOME/bin/aih" dispatch reviewer --detach >/dev/null || log "run: could not dispatch a reviewer" ;;
 	"$EX_OK") ;;
 	*)
 		_rj_t=$(ai_harness_ig_file parked/@trunk)

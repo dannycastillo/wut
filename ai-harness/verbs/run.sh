@@ -46,7 +46,7 @@ if [ "$_detach" = yes ]; then
 	_args=
 	[ "$_once" = no ] || _args=--once
 	# shellcheck disable=SC2086  # _args is a flag or empty
-	_pid=$(set -m; nohup "$AI_HARNESS_HOME/bin/harness" run $_args </dev/null >>"$_log" 2>&1 & printf '%s\n' "$!")
+	_pid=$(set -m; nohup "$AI_HARNESS_HOME/bin/aih" run $_args </dev/null >>"$_log" 2>&1 & printf '%s\n' "$!")
 	log "run: loop pid $_pid, log $_log"
 	printf '%s\n' "$_pid"
 	exit "$EX_OK"
