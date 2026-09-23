@@ -36,13 +36,13 @@ kubectl/Kubernetes and rg/ripgrep convention.
 | commit trailers | `AI-Harness-Todo`, `AI-Harness-Worker`, … |
 | AGENTS.md marker | `<!-- ai-harness:begin -->` … `<!-- ai-harness:end -->` |
 | role docs, README | `ai-harness/roles/`, `ai-harness/README.md` |
+| shell functions | `ai_harness_*`, including `ai_harness_gate_*` in the conf |
 | lock, event and log files | unchanged; they live under the state directory |
-| shell functions, `harness_*` and `harness_gate_*` | unchanged |
 
-The function prefix stays. It is on no shared namespace, `harness` is still
-the word used in prose, and the churn would touch every line of the tree for
-no reader's benefit. The gate functions in the conf keep it for the same
-reason.
+The function prefix moves too. It is a painful rewrite and it is the point:
+when this is its own project, nothing in it may answer to the bare word
+`harness`. The standalone word goes away everywhere except prose, and prose
+says "the harness" only where "AI Harness" would read badly.
 
 Do not ship an `ai-harness` command as well. Two names for one executable
 means every doc still picks one and agents copy whatever the docs say. The
@@ -80,7 +80,11 @@ requirement of the system.
   keep both behaviours, and update the message that suggests a shell function.
 - `git mv .harness.conf .ai-harness.conf`, and every `HARNESS_*` variable in
   it and in the tree becomes `AI_HARNESS_*`, `HARNESS_GATE_TOOLS_*` included.
-  Only function names keep the old prefix.
+- Every `harness_*` function becomes `ai_harness_*`, the `harness_gate_*`
+  and `harness_gate_build`-style functions in the conf included, and the
+  loop's `harness_agent_spawn` with them. A mechanical `sed` on word
+  boundaries does most of it; read the diff for the lock names and event
+  words that share the prefix in strings.
 - The state directory name, the trailer prefix (`lib/integrate.sh`, `verbs/log.sh`),
   the AGENTS.md marker and the checksum `doctor` verifies against it.
 - Every `harness <verb>` in `AGENTS.md`, `ai-harness/README.md`,
@@ -100,9 +104,9 @@ the marker rather than leaving `doctor` to report drift.
 ## Done when
 - [ ] `ai-harness/bin/aih doctor` passes from the main checkout and from a
       linked worktree
-- [ ] `git grep -nw harness -- . ':!docs/' ':!todo/chore-rename*'` finds only
-      prose and `harness_*` function names, no path, command, variable,
-      trailer or marker
+- [ ] `git grep -nwi harness -- . ':!docs/' ':!todo/chore-rename*'` finds only
+      prose; no path, command, variable, function, trailer or marker
+- [ ] `git grep -n 'harness_' -- . ':!docs/'` finds nothing
 - [ ] `aih check --selftest` passes, and `aih gate --full` is green
 - [ ] With no `aih` on PATH, `aih doctor` output names the launcher and where
       to put it, and a worker started by `aih dispatch worker --detach` with a
