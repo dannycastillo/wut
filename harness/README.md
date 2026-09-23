@@ -12,13 +12,11 @@ ADR-09 (the gate lives in config).
 
 Partly built. `harness help` lists what your copy has.
 
-- **Built:** `claim`, `abandon`, `path`, `status`, `gate`, `doctor`, `unlock`,
-  `help`, `plan`, `dispatch`, `submit`, `check`, `integrate`, and both role
-  docs in `harness/roles/`.
-- Every verb in the tables below is built.
-- Until `chore-retire-the-human-merge-gate` lands, `AGENTS.md` still says a
-  human merges every branch, and an agent that reads it will obey. `run`
-  works today with stub agents; real ones wait on that todo.
+- Every verb in the tables below is built, and both role docs exist.
+- `AGENTS.md` names the two roles and no language. Trunk is written only by
+  `integrate`; the hooks refuse anything else unless `HARNESS_ALLOW_TRUNK=1`.
+- Not yet lifted into another repo: `install.sh` and the adapters are open
+  todos.
 
 ## Setup
 
@@ -30,8 +28,12 @@ harness() { "$(git rev-parse --show-toplevel)/harness/bin/harness" "$@"; }
 harness doctor --selftest
 ```
 
-- `doctor` checks the state dir, trunk, the worktree root and every declared
-  gate's tools. It changes nothing unless given `--repair`.
+- `doctor` checks the state dir, trunk, the worktree root, every declared
+  gate's tools, the hooks, and the `AGENTS.md` block's checksum. It changes
+  nothing unless given `--repair`, which rebuilds claims from git and installs
+  the hooks as symlinks into the shared hooks directory.
+- A human merging by hand runs `HARNESS_ALLOW_TRUNK=1 git merge --no-ff`. The
+  hook says so when it refuses.
 - A harness invoked from another worktree's tree refuses to run. It would read
   the wrong `.harness.conf`.
 
@@ -154,7 +156,13 @@ harness working, not failing.
 Other hard stops, all by design: `harness/**`, `.harness.conf`, a
 `HARNESS_PROTECTED` path missing from `Touches`, an added test skip, a commit
 subject outside the four prefixes, a red trunk before the merge, a red gate
-after it, and a dirty trunk checkout.
+after it, a dirty trunk checkout, and after numbering, an `ADR-DRAFT` token
+that survived or two ADRs with one number.
+
+A draft ADR (`docs/adr-draft-<kebab>.md`, ADR-08) is numbered by `integrate`
+after the merge and before the post-merge gate, inside the lock. The number
+is recomputed from the files present, which is what makes two drafts landing
+in either order safe.
 
 ## Configuration
 

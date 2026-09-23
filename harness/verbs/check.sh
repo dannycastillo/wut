@@ -43,7 +43,7 @@ _ckt_selftest() {
 	_ckt_branch; printf 'more\n' >>AGENTS.md; _ckt_expect 'protected-path stop'
 	_ckt_branch; sed 's/^One\.$/Two./' docs/adr-07-a.md >docs/x && mv docs/x docs/adr-07-a.md; _ckt_expect 'adr-decision stop'
 	_ckt_branch; printf 'Later.\n' >>docs/adr-07-a.md; _ckt_expect 'clean pass'
-	_ckt_branch; printf '# ADR-DRAFT-%s: B\n' SELFTEST >docs/adr-draft-b.md; _ckt_expect 'adr-draft stop'
+	_ckt_branch; printf '# ADR-DRAFT-%s: B\n' SELFTEST >docs/adr-draft-b.md; _ckt_expect 'clean pass'
 	_ckt_branch; git rm -q todo/chore-y.md; _ckt_expect 'todo-deleted stop'
 	_ckt_branch; printf 't.Skip("x")\n' >>src/a_test.go; _ckt_expect 'skip-added stop'
 	_ckt_branch; printf 'b\n' >src/a; _ckt_expect 'bad-subject stop' 'wip'

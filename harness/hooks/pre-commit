@@ -1,0 +1,11 @@
+#!/bin/sh
+# Refuses a direct write to trunk. integrate sets HARNESS_ALLOW_TRUNK=1 for its
+# own merge commit; a human merging by hand sets it to say so on purpose.
+[ "${HARNESS_ALLOW_TRUNK:-}" != 1 ] || exit 0
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+trunk=$(sed -n 's/^HARNESS_TRUNK="*\([^"]*\)"*$/\1/p' "$root/.harness.conf" 2>/dev/null)
+[ -n "$trunk" ] || exit 0
+[ "$(git symbolic-ref -q --short HEAD)" = "$trunk" ] || exit 0
+printf 'harness: %s is written only by a merge through harness integrate\n' "$trunk" >&2
+printf 'harness: a human merging by hand sets HARNESS_ALLOW_TRUNK=1\n' >&2
+exit 1

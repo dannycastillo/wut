@@ -100,6 +100,38 @@ fi
 _row worktrees "$(git worktree list | wc -l | tr -d ' ') (including the main one)"
 _row push "${HARNESS_PUSH:-no}"
 
+# Hooks live in the common dir, so one install covers every worktree, and
+# they point at the main worktree's copy: a linked worktree's goes away.
+_hooks="$(dirname -- "$(harness_state_dir)")/hooks"
+for _h in pre-commit pre-merge-commit; do
+	_src="$(harness_main_worktree)/harness/hooks/$_h"
+	_dst="$_hooks/$_h"
+	if [ "$_repair" = yes ] && [ ! -e "$_dst" ] && [ ! -L "$_dst" ]; then
+		mkdir -p "$_hooks" && ln -s "$_src" "$_dst" && log "  + hooks/$_h  installed"
+	fi
+	if [ -L "$_dst" ] && [ "$(readlink "$_dst")" = "$_src" ]; then
+		_row "hook $_h" installed
+	elif [ -e "$_dst" ] || [ -L "$_dst" ]; then
+		_bad "hook $_h" "$_dst exists and is not the harness's — replace it by hand"
+	else
+		_bad "hook $_h" "not installed — harness doctor --repair"
+	fi
+done
+
+# The block is refreshed by install and reported here; never rewritten here.
+_blk=$(sed -n '/^<!-- harness:begin /,/^<!-- harness:end -->$/p' "$HARNESS_REPO/AGENTS.md" 2>/dev/null)
+if [ -z "$_blk" ]; then
+	_bad AGENTS.md "no harness block between <!-- harness:begin --> and <!-- harness:end -->"
+else
+	_want=$(printf '%s\n' "$_blk" | sed -n '1s/.*cksum=\([0-9]*\).*/\1/p')
+	_got=$(printf '%s\n' "$_blk" | sed '1d;$d' | cksum | cut -d' ' -f1)
+	if [ "$_want" = "$_got" ]; then
+		_row AGENTS.md "harness block intact"
+	else
+		_bad AGENTS.md "harness block edited: its cksum is $_got, the marker says ${_want:-nothing} — update the marker if the edit is meant"
+	fi
+fi
+
 if [ "$_selftest" = yes ]; then
 	printf '\n  selftest (HEAD, not the working tree)\n'
 	harness_selftest || _fails=$((_fails + 1))

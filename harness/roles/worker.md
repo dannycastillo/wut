@@ -9,7 +9,7 @@ the order to apply them in, and when to stop.
 2. Work inside the worktree `harness claim` gave you. Run `harness gate --quick`
    as you go, and `harness check` to see what `integrate` will say.
 3. Commit and finish as `AGENTS.md` describes under **Picking one up**.
-4. If trunk has moved, rebase onto it yourself (ADR-07).
+4. If trunk has moved, rebase onto it yourself (ADR-10).
 5. `harness submit`, from the worktree:
    - `--body <file>` or `--body -` for the merge's summary prose. Omitted, the
      branch's commit subjects stand in.

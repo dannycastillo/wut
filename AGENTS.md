@@ -59,39 +59,47 @@ prefix of its most significant change.
 ### Before every commit
 
 ```sh
-go build ./...
-go vet ./...
+harness gate --quick
 ```
 
-Both must pass. Don't commit over a failure — fix it or report it. Say in your
-summary that they ran and what they said, so the check is visible rather than
-assumed.
+It must pass. What it runs is declared in `.harness.conf` (ADR-09), so this
+file names no language. Don't commit over a failure — fix it or report it. Say
+in your summary that it ran and what it said, so the check is visible rather
+than assumed.
 
-### Merging is Danny's call
+### Trunk is written only by `harness integrate`
 
-When a branch is finished:
+Two roles, and the session that writes a diff never reviews it (ADR-10):
 
-1. Show what's on it:
-   ```sh
-   git log --oneline main..HEAD
-   git diff main...HEAD
-   ```
-2. **Stop.** Wait for explicit approval in chat.
-3. Only after approval:
-   ```sh
-   git switch main
-   git merge --no-ff <branch>
-   git push origin main
-   git branch -d <branch>
-   ```
+- A **worker** finishes by running `harness submit`. It never merges, never
+  pushes, and never runs `git merge`.
+- A **reviewer** verifies the packet `harness integrate --next` prints and
+  finishes by running `harness integrate --continue` with a verdict. The verb
+  merges; the reviewer never does.
 
-`--no-ff` forces a merge commit even when `main` hasn't moved. A fast-forward
-would splice the branch's commits into `main` as a flat line and lose the fact
-that they shipped as one unit; the merge commit keeps that grouping, so
-`git log --first-parent main` reads as a list of changes rather than a list of
-keystrokes.
+`integrate` merges with `--no-ff`, so there is a merge commit even when `main`
+hasn't moved. A fast-forward would splice the branch's commits into `main` as a
+flat line and lose the fact that they shipped as one unit; the merge commit
+keeps that grouping, so `git log --first-parent main` reads as a list of
+changes rather than a list of keystrokes.
+
+Anything the verbs stop on — a park, a red gate, a path outside `Touches` — is
+a human's to resolve. The hooks refuse a direct write to trunk; a human merging
+by hand sets `HARNESS_ALLOW_TRUNK=1` to say so on purpose.
 
 Never push a branch, merge, or force-push anything without being asked.
+
+<!-- harness:begin cksum=979730883 -->
+## Working in parallel
+
+Several agents work this backlog at once, one todo each, in separate
+worktrees, and trunk is written only by `harness integrate`. The mechanics and
+the verbs are in `harness/README.md`; each role's sequence is in
+`harness/roles/`. `harness run` works a set of todos unattended.
+
+`Touches` in a todo is a reservation on paths, and it is the only thing that
+decides what runs side by side.
+<!-- harness:end -->
 
 ## Architecture decisions
 
@@ -126,8 +134,15 @@ other.
 
 ### File shape
 
-`docs/adr-NN-short-kebab-title.md`, `NN` zero-padded, next number after the
-highest already present.
+`docs/adr-NN-short-kebab-title.md`, `NN` zero-padded. The number is assigned
+at merge, not by the author (ADR-08): two branches cannot race for one.
+
+A draft is `docs/adr-draft-<short-kebab-title>.md`, headed
+`# ADR-DRAFT-<SHORT-KEBAB-TITLE>: Title`, with `**Status:** Proposed`. Cite it
+from other files by that token. `integrate` renames the file, rewrites the
+heading, status and date, and replaces the token wherever it appears. To
+supersede, write `**Superseded by:** ADR-DRAFT-<KEBAB>` in the old file and
+list that file in `Touches`.
 
 ```markdown
 # ADR-NN: Title
@@ -304,11 +319,14 @@ you spot adjacent work, file a todo for it rather than folding it in.
 
 ### Picking one up
 
-1. Read the todo file, and read in full any ADR it references.
-2. Branch using the name in the file.
-3. Do the work.
+1. `cd "$(harness claim <todo-stem>)"`. It cuts the branch and a worktree from
+   trunk and reserves `Touches`. `harness dispatch worker` takes the top
+   runnable one instead.
+2. Read the todo file, and read in full any ADR it references.
+3. Do the work. `harness gate --quick` before every commit, and
+   `harness check` to see what `integrate` will say.
 4. `git rm` the todo file as part of the final commit on the branch.
-5. Stop for approval, per the git workflow above.
+5. Rebase onto trunk if it moved, then `harness submit`.
 
 Deleting the file on the branch means merging the work and clearing the backlog
 are the same event — there's no second step to forget, and no status field that

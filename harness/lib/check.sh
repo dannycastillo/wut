@@ -92,9 +92,10 @@ harness_check_paths() {
 }
 
 harness_check_diff() {
+	# A draft on a branch is expected; integrate numbers it. adr-draft is
+	# raised after that, by harness_adr_assert, if a token survives.
 	git diff "$HARNESS_TRUNK...$2" | awk '/^\+\+\+ / { go = /\.go$/; next } !/^\+/ { next } go && /t\.Skip\(/ { k++ }
-		{ while (match($0, /ADR-DRAFT-[A-Z0-9][A-Z0-9-]*/)) { d[substr($0, RSTART, RLENGTH)] = 1; $0 = substr($0, RSTART + RLENGTH) } }
-		END { if (k) print "skip-added " k " added line(s) call t.Skip("; for (t in d) print "adr-draft " t " would reach trunk unnumbered" }'
+		END { if (k) print "skip-added " k " added line(s) call t.Skip(" }'
 	git log --no-merges --format='%h %s' "$HARNESS_TRUNK..$2" | awk -v px=" $HARNESS_PREFIXES " '
 		{ p = $2; sub(/:$/, "", p) } NF < 3 || $2 !~ /:$/ || !index(px, " " p " ") { print "bad-subject " $0 }'
 	git diff --numstat --no-renames "$HARNESS_TRUNK...$2" | awk -F'\t' -v lim="${HARNESS_DIFF_SOFT_LIMIT:-0}" '
