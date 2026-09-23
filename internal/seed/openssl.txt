@@ -1,0 +1,14 @@
+# show a server's certificate subject, issuer and expiry
+openssl s_client -connect HOST:443 -servername HOST </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates
+
+# read a certificate file
+openssl x509 -in FILE -noout -text
+
+# make a self-signed cert and key for local development
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 365 -subj "/CN=localhost"
+
+# generate a random hex secret
+openssl rand -hex 32
+
+# sha256 of a file
+openssl dgst -sha256 FILE

@@ -1,0 +1,38 @@
+# connect on a non-standard port
+ssh -p PORT USER@HOST
+
+# run one command on a host
+ssh USER@HOST "COMMAND"
+
+# connect through a jump host
+ssh -J JUMP USER@HOST
+
+# forward a local port to a port on the host (local:remote)
+ssh -L PORT:localhost:PORT USER@HOST
+
+# expose a local port on the host, a reverse tunnel (remote:local)
+ssh -R PORT:localhost:PORT USER@HOST
+
+# start a socks proxy through a host
+ssh -D PORT USER@HOST
+
+# keep an idle connection alive
+ssh -o ServerAliveInterval=60 USER@HOST
+
+# generate a new ed25519 key
+ssh-keygen -t ed25519
+
+# copy your public key to a host
+ssh-copy-id USER@HOST
+
+# add a key to the agent and the macos keychain
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+
+# forget a host key after the server was rebuilt
+ssh-keygen -R HOST
+
+# copy a file to a host
+scp SRC USER@HOST:DST
+
+# copy a directory to a host
+scp -r SRC USER@HOST:DST

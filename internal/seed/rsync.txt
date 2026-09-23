@@ -1,0 +1,11 @@
+# sync a directory to a host, showing progress
+rsync -avz --progress SRC/ USER@HOST:DST/
+
+# preview what a sync would change
+rsync -avzn SRC/ DST/
+
+# sync, deleting files that are gone from the source
+rsync -avz --delete SRC/ DST/
+
+# sync, skipping a pattern
+rsync -avz --exclude=node_modules SRC/ DST/

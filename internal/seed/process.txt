@@ -1,0 +1,23 @@
+# find the pids of processes whose command line matches a name
+pgrep -fl NAME
+
+# top processes by cpu
+ps aux | sort -nrk 3 | head -n 10
+
+# top processes by memory
+ps aux | sort -nrk 4 | head -n 10
+
+# force kill a process
+kill -9 PID
+
+# ask a process to reload its config
+kill -HUP PID
+
+# kill every process whose command line matches a name
+pkill -f NAME
+
+# kill whatever is listening on a port
+kill -9 $(lsof -t -i :PORT)
+
+# run a command that survives closing the terminal
+nohup COMMAND > nohup.out 2>&1 &

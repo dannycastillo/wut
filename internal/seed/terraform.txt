@@ -1,32 +1,32 @@
-# initialize working directory
-terraform init
+# initialize and upgrade providers to the newest allowed versions
+terraform init -upgrade
 
-# preview changes
-terraform plan
-
-# apply changes
-terraform apply
+# save a plan, then apply exactly that plan
+terraform plan -out=tfplan && terraform apply tfplan
 
 # apply without confirmation prompt
 terraform apply -auto-approve
 
-# destroy managed infrastructure
-terraform destroy
+# apply to one resource only
+terraform apply -target=RESOURCE
 
-# format config files
-terraform fmt
-
-# validate config
-terraform validate
+# destroy and recreate one resource
+terraform apply -replace=RESOURCE
 
 # list resources in state
 terraform state list
 
-# show outputs
-terraform output
+# show one resource from state
+terraform state show RESOURCE
 
-# list workspaces
-terraform workspace list
+# forget a resource without destroying it
+terraform state rm RESOURCE
+
+# bring an existing resource under management
+terraform import RESOURCE ID
 
 # select a workspace
-terraform workspace select WORKSPACE_NAME
+terraform workspace select WORKSPACE
+
+# opentofu is a drop-in fork, so every terraform snippet here runs as tofu
+tofu init

@@ -1,0 +1,14 @@
+# print the second column
+awk '{print $2}' FILE
+
+# print the second column of a csv
+awk -F, '{print $2}' FILE
+
+# print the last column
+awk '{print $NF}' FILE
+
+# sum the first column
+awk '{sum += $1} END {print sum}' FILE
+
+# drop duplicate lines, keeping the first and the order
+awk '!seen[$0]++' FILE

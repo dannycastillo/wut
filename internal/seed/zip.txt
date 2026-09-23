@@ -1,0 +1,14 @@
+# zip a directory
+zip -r NAME.zip DIR
+
+# zip a directory without the mac metadata files
+zip -r NAME.zip DIR -x "*.DS_Store" "__MACOSX/*"
+
+# unzip into a directory
+unzip ARCHIVE -d DIR
+
+# list the contents of a zip
+unzip -l ARCHIVE
+
+# unzip quietly, overwriting what is there
+unzip -oq ARCHIVE -d DIR

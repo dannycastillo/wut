@@ -1,14 +1,8 @@
-# view containers
-docker ps
-
-# view all containers including stopped
-docker ps -a
-
-# view images
-docker images
-
 # run a container interactively and remove it on exit
 docker run -it --rm IMAGE bash
+
+# run a container in the background with a port published (local:container)
+docker run -d --name NAME -p PORT:PORT IMAGE
 
 # open a shell in a running container
 docker exec -it CONTAINER bash
@@ -16,38 +10,26 @@ docker exec -it CONTAINER bash
 # follow container logs
 docker logs -f CONTAINER
 
-# stop a container
-docker stop CONTAINER
+# build an image from the current directory
+docker build -t IMAGE .
 
-# delete containers
-docker rm CONTAINER_1 CONTAINER_2
+# tag an image for a registry and push it
+docker tag IMAGE HOST/IMAGE:TAG && docker push HOST/IMAGE:TAG
 
-# delete images
-docker rmi IMAGE_1 IMAGE_2
+# copy a file out of a container
+docker cp CONTAINER:SRC DST
 
-# build image from current directory
-docker build -t IMAGE_NAME .
-
-# docker disk usage
-docker system df
-
-# delete buildkit cache (--all --force)
+# delete all buildkit cache without asking
 docker builder prune -af
 
-# delete docker images (--all --force)
+# delete all unused images without asking
 docker image prune -af
 
-# delete single docker image
-docker image prune
-
-# delete all unused containers, networks, images, and cache
+# delete all unused containers, networks, images and cache
 docker system prune -af
 
-# list volumes
-docker volume ls
+# rebuild images then start compose services in the background
+docker compose up -d --build
 
-# start compose services in background
-docker compose up -d
-
-# stop and remove compose services
-docker compose down
+# follow logs from every compose service
+docker compose logs -f

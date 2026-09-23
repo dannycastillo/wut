@@ -1,0 +1,14 @@
+# install a gui app (cask)
+brew install --cask NAME
+
+# refresh the package index and list what is outdated
+brew update && brew outdated
+
+# remove old versions and cached downloads
+brew cleanup
+
+# start a package as a background service
+brew services start NAME
+
+# write every installed package to a brewfile
+brew bundle dump --file=Brewfile

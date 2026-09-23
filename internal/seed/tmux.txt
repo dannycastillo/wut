@@ -1,38 +1,35 @@
-# Start named session
-tmux new -s SESSION_NAME
+# start a detached session running a command
+tmux new -d -s SESSION COMMAND
 
-# List active sessions
-tmux ls
+# attach to a session, creating it if it does not exist
+tmux new -A -s SESSION
 
-# Attach to specific session
-tmux attach -t SESSION_NAME
+# detach from the current session (prefix d)
+tmux detach
 
-# Kill specific session
-tmux kill-session -t SESSION_NAME
+# rename the current session (prefix $)
+tmux rename-session NAME
 
-# Kill ALL sessions
+# kill all sessions
 tmux kill-server
 
-# Rename current session
-Ctrl + b then $
+# split the pane side by side (prefix %)
+tmux split-window -h
 
-# Detach from current session
-Ctrl + b then d
+# split the pane top and bottom (prefix ")
+tmux split-window -v
 
-# Split pane vertically (side by side)
-Ctrl + b then %
+# move to the pane in a direction, one of -l -r -u -d (prefix arrow)
+tmux select-pane -L
 
-# Split pane horizontally (top and bottom)
-Ctrl + b then "
+# zoom the current pane to full size, or back (prefix z)
+tmux resize-pane -Z
 
-# Move between panes
-Ctrl + b then arrow key
+# type a command into another session
+tmux send-keys -t SESSION "COMMAND" Enter
 
-# Close current pane
-Ctrl + b then x
+# save the current pane's scrollback to a file
+tmux capture-pane -p -S - > FILE
 
-# Create new window
-Ctrl + b then c
-
-# Next or previous window
-Ctrl + b then n or p
+# reload the config
+tmux source-file ~/.tmux.conf
