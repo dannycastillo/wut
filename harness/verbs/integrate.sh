@@ -111,7 +111,7 @@ if ! harness_ig_gate; then
 fi
 _msg="$(harness_ig_file tmp)/merge.$$"
 harness_ig_message "$_stem" "$_branch" >"$_msg"
-if ! HARNESS_ALLOW_TRUNK=1 git commit -q -F "$_msg"; then
+if ! git commit -q -F "$_msg"; then
 	git reset -q --hard "$_pre"
 	harness_ig_stop "$_stem" merge-refused "git commit refused the merge — a hook?"
 fi

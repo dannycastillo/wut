@@ -84,8 +84,9 @@ keeps that grouping, so `git log --first-parent main` reads as a list of
 changes rather than a list of keystrokes.
 
 Anything the verbs stop on — a park, a red gate, a path outside `Touches` — is
-a human's to resolve. The hooks refuse a direct write to trunk; a human merging
-by hand sets `HARNESS_ALLOW_TRUNK=1` to say so on purpose.
+a human's to resolve, and a human merging by hand is the one exception to the
+rule above. `harness log` marks such a merge `by hand`, because it carries no
+trailers.
 
 Never push a branch, merge, or force-push anything without being asked.
 

@@ -100,24 +100,6 @@ fi
 _row worktrees "$(git worktree list | wc -l | tr -d ' ') (including the main one)"
 _row push "${HARNESS_PUSH:-no}"
 
-# Hooks live in the common dir, so one install covers every worktree, and
-# they point at the main worktree's copy: a linked worktree's goes away.
-_hooks="$(dirname -- "$(harness_state_dir)")/hooks"
-for _h in pre-commit pre-merge-commit; do
-	_src="$(harness_main_worktree)/harness/hooks/$_h"
-	_dst="$_hooks/$_h"
-	if [ "$_repair" = yes ] && [ ! -e "$_dst" ] && [ ! -L "$_dst" ]; then
-		mkdir -p "$_hooks" && ln -s "$_src" "$_dst" && log "  + hooks/$_h  installed"
-	fi
-	if [ -L "$_dst" ] && [ "$(readlink "$_dst")" = "$_src" ]; then
-		_row "hook $_h" installed
-	elif [ -e "$_dst" ] || [ -L "$_dst" ]; then
-		_bad "hook $_h" "$_dst exists and is not the harness's — replace it by hand"
-	else
-		_bad "hook $_h" "not installed — harness doctor --repair"
-	fi
-done
-
 # The block is refreshed by install and reported here; never rewritten here.
 _blk=$(sed -n '/^<!-- harness:begin /,/^<!-- harness:end -->$/p' "$HARNESS_REPO/AGENTS.md" 2>/dev/null)
 if [ -z "$_blk" ]; then

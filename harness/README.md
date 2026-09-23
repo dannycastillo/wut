@@ -14,7 +14,8 @@ Partly built. `harness help` lists what your copy has.
 
 - Every verb in the tables below is built, and both role docs exist.
 - `AGENTS.md` names the two roles and no language. Trunk is written only by
-  `integrate`; the hooks refuse anything else unless `HARNESS_ALLOW_TRUNK=1`.
+  `integrate`, as a rule rather than a mechanism: a merge made by hand shows
+  in `harness log` as `by hand`, since it carries no trailers.
 - Not yet lifted into another repo: `install.sh` and the adapters are open
   todos.
 
@@ -29,11 +30,8 @@ harness doctor --selftest
 ```
 
 - `doctor` checks the state dir, trunk, the worktree root, every declared
-  gate's tools, the hooks, and the `AGENTS.md` block's checksum. It changes
-  nothing unless given `--repair`, which rebuilds claims from git and installs
-  the hooks as symlinks into the shared hooks directory.
-- A human merging by hand runs `HARNESS_ALLOW_TRUNK=1 git merge --no-ff`. The
-  hook says so when it refuses.
+  gate's tools, and the `AGENTS.md` block's checksum. It changes nothing
+  unless given `--repair`, which rebuilds claims from git.
 - A harness invoked from another worktree's tree refuses to run. It would read
   the wrong `.harness.conf`.
 
