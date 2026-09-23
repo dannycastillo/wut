@@ -6,7 +6,7 @@ _tab=$(printf '\t')
 _out=$(harness_plan)
 
 _section() {
-	_rows=$(printf '%s\n' "$_out" | awk -F'\t' -v k="$1" '$1 == k { printf "  %-34s %s\n", $2, $3 }')
+	_rows=$(printf '%s\n' "$_out" | awk -F'\t' -v k="$1" '$1 == k { printf "  %-34s %s\n", $2, (NF > 3 ? sprintf("%-34s %s", $3, $4) : $3) }')
 	[ -z "$_rows" ] || printf '%s\n%s\n\n' "$2" "$_rows"
 }
 _section run 'runnable, in priority order'
