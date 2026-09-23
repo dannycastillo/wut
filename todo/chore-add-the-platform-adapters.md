@@ -18,9 +18,13 @@ being AI-agnostic.
 
 Each adapter is a pointer and nothing more.
 `.claude/skills/harness-worker/SKILL.md` says to read `harness/roles/worker.md`
-and follow it; same shape for integrator and reviewer. All three role docs have
-to exist first, and `reviewer.md` is the last of them to land. Cursor gets
+and follow it; same shape for the reviewer. Both role docs exist once
+`chore-rename-the-integrator-to-reviewer` lands. Cursor gets
 `.cursor/rules/*.mdc` doing the same thing.
+
+The loop starts agents through `HARNESS_AGENT_CMD` with a one-line prompt, so
+it needs no adapter at all. Adapters are for a human starting a role by hand
+in an editor session.
 
 `adapters/README.md`: how to add one in about ten lines, and the note that a
 platform which already reads AGENTS.md needs none, because the boot prompt is
@@ -30,8 +34,8 @@ If an adapter turns out to need something the role doc does not say, the fix is
 to put it in the role doc.
 
 ## Done when
-- [ ] Claude Code adapter: three skills, each a pointer to its role doc
-- [ ] Cursor adapter: three rules, same
+- [ ] Claude Code adapter: two skills, each a pointer to its role doc
+- [ ] Cursor adapter: two rules, same
 - [ ] No adapter contains behaviour that is not in a role doc
 - [ ] `adapters/README.md` explains adding one, and when none is needed
 - [ ] A worker started through the adapter and one started from the one-line
