@@ -5,20 +5,19 @@ One todo, one branch, one worktree. Trunk is written only by a merge.
 The harness lets several agents work one repo's backlog at once without
 landing in the same file. It is plain POSIX sh plus git, and nothing else.
 The repo's rules stay in `AGENTS.md`; the harness enforces them mechanically.
-Design: ADR-10 (a shell loop schedules two roles), ADR-08 (ADR numbering),
-ADR-09 (the gate lives in config).
+Design: ADR-10 (a shell loop schedules two roles) and ADR-09 (the gate lives
+in config).
 
 ## Status
 
 Partly built. `harness help` lists what your copy has.
 
-- **Built:** `claim`, `abandon`, `path`, `status`, `gate`, `doctor`, `unlock`,
-  `help`, `plan`, `dispatch`, `submit`, `check`, `integrate`, and both role
-  docs in `harness/roles/`.
-- Every verb in the tables below is built.
-- Until `chore-retire-the-human-merge-gate` lands, `AGENTS.md` still says a
-  human merges every branch, and an agent that reads it will obey. `run`
-  works today with stub agents; real ones wait on that todo.
+- Every verb in the tables below is built, and both role docs exist.
+- `AGENTS.md` names the two roles and no language. Trunk is written only by
+  `integrate`, as a rule rather than a mechanism: a merge made by hand shows
+  in `harness log` as `by hand`, since it carries no trailers.
+- Not yet lifted into another repo: `install.sh` and the adapters are open
+  todos.
 
 ## Setup
 
@@ -30,8 +29,9 @@ harness() { "$(git rev-parse --show-toplevel)/harness/bin/harness" "$@"; }
 harness doctor --selftest
 ```
 
-- `doctor` checks the state dir, trunk, the worktree root and every declared
-  gate's tools. It changes nothing unless given `--repair`.
+- `doctor` checks the state dir, trunk, the worktree root, every declared
+  gate's tools, and the `AGENTS.md` block's checksum. It changes nothing
+  unless given `--repair`, which rebuilds claims from git.
 - A harness invoked from another worktree's tree refuses to run. It would read
   the wrong `.harness.conf`.
 
@@ -154,7 +154,9 @@ harness working, not failing.
 Other hard stops, all by design: `harness/**`, `.harness.conf`, a
 `HARNESS_PROTECTED` path missing from `Touches`, an added test skip, a commit
 subject outside the four prefixes, a red trunk before the merge, a red gate
-after it, and a dirty trunk checkout.
+after it, and a dirty trunk checkout. Nothing in that list names a path that
+is not a todo, the harness itself, or `HARNESS_PROTECTED` from config: the
+harness knows nothing about the project's own conventions.
 
 ## Configuration
 

@@ -59,44 +59,53 @@ prefix of its most significant change.
 ### Before every commit
 
 ```sh
-go build ./...
-go vet ./...
+harness gate --quick
 ```
 
-Both must pass. Don't commit over a failure — fix it or report it. Say in your
-summary that they ran and what they said, so the check is visible rather than
-assumed.
+It must pass. What it runs is declared in `.harness.conf` (ADR-09), so this
+file names no language. Don't commit over a failure — fix it or report it. Say
+in your summary that it ran and what it said, so the check is visible rather
+than assumed.
 
-### Merging is Danny's call
+### Trunk is written only by `harness integrate`
 
-When a branch is finished:
+Two roles, and the session that writes a diff never reviews it (ADR-10):
 
-1. Show what's on it:
-   ```sh
-   git log --oneline main..HEAD
-   git diff main...HEAD
-   ```
-2. **Stop.** Wait for explicit approval in chat.
-3. Only after approval:
-   ```sh
-   git switch main
-   git merge --no-ff <branch>
-   git push origin main
-   git branch -d <branch>
-   ```
+- A **worker** finishes by running `harness submit`. It never merges, never
+  pushes, and never runs `git merge`.
+- A **reviewer** verifies the packet `harness integrate --next` prints and
+  finishes by running `harness integrate --continue` with a verdict. The verb
+  merges; the reviewer never does.
 
-`--no-ff` forces a merge commit even when `main` hasn't moved. A fast-forward
-would splice the branch's commits into `main` as a flat line and lose the fact
-that they shipped as one unit; the merge commit keeps that grouping, so
-`git log --first-parent main` reads as a list of changes rather than a list of
-keystrokes.
+`integrate` merges with `--no-ff`, so there is a merge commit even when `main`
+hasn't moved. A fast-forward would splice the branch's commits into `main` as a
+flat line and lose the fact that they shipped as one unit; the merge commit
+keeps that grouping, so `git log --first-parent main` reads as a list of
+changes rather than a list of keystrokes.
+
+Anything the verbs stop on — a park, a red gate, a path outside `Touches` — is
+a human's to resolve, and a human merging by hand is the one exception to the
+rule above. `harness log` marks such a merge `by hand`, because it carries no
+trailers.
 
 Never push a branch, merge, or force-push anything without being asked.
+
+<!-- harness:begin cksum=979730883 -->
+## Working in parallel
+
+Several agents work this backlog at once, one todo each, in separate
+worktrees, and trunk is written only by `harness integrate`. The mechanics and
+the verbs are in `harness/README.md`; each role's sequence is in
+`harness/roles/`. `harness run` works a set of todos unattended.
+
+`Touches` in a todo is a reservation on paths, and it is the only thing that
+decides what runs side by side.
+<!-- harness:end -->
 
 ## Architecture decisions
 
 Decisions about the project's direction live in `docs/` as Architecture
-Decision Records — one file per decision, numbered in the order made.
+Decision Records — one file per decision, named by the date it was made.
 
 ### Read them before starting work
 
@@ -126,11 +135,17 @@ other.
 
 ### File shape
 
-`docs/adr-NN-short-kebab-title.md`, `NN` zero-padded, next number after the
-highest already present.
+`docs/adr-YYYY-MM-DD-short-kebab-title.md`, dated the day it is written.
+Two authors on one day pick different titles; the same title on the same day
+is the same path, which git reports as a conflict instead of merging silently.
+That is the whole reason for the date: sequential numbers were tried and two
+branches can each add the next one with no conflict at all.
+
+Refer to an ADR by its file name without the directory and extension. The
+first ten are numbered `ADR-01` to `ADR-10` and keep those names.
 
 ```markdown
-# ADR-NN: Title
+# ADR YYYY-MM-DD: Title
 
 - **Status:** Accepted
 - **Date:** YYYY-MM-DD
@@ -173,9 +188,10 @@ Never rewrite the Decision of an accepted ADR. A record you edit is no longer a
 record of what you decided — it's a record of what you currently think, and the
 code already tells you that.
 
-To change course, write a new ADR carrying `**Supersedes:** ADR-NN`, and add a
-`**Superseded by:** ADR-MM` line to the old one's status block. Adding that
-back-pointer is the only edit an accepted ADR ever takes.
+To change course, write a new ADR carrying `**Supersedes:** <old name>`, and
+add a `**Superseded by:** <new name>` line to the old one's status block.
+Adding that back-pointer is the only edit an accepted ADR ever takes. List the
+old file in `Touches`, so two branches superseding it serialize.
 
 ## Comments
 
@@ -304,11 +320,14 @@ you spot adjacent work, file a todo for it rather than folding it in.
 
 ### Picking one up
 
-1. Read the todo file, and read in full any ADR it references.
-2. Branch using the name in the file.
-3. Do the work.
+1. `cd "$(harness claim <todo-stem>)"`. It cuts the branch and a worktree from
+   trunk and reserves `Touches`. `harness dispatch worker` takes the top
+   runnable one instead.
+2. Read the todo file, and read in full any ADR it references.
+3. Do the work. `harness gate --quick` before every commit, and
+   `harness check` to see what `integrate` will say.
 4. `git rm` the todo file as part of the final commit on the branch.
-5. Stop for approval, per the git workflow above.
+5. Rebase onto trunk if it moved, then `harness submit`.
 
 Deleting the file on the branch means merging the work and clearing the backlog
 are the same event — there's no second step to forget, and no status field that

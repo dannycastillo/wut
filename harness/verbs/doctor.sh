@@ -100,6 +100,20 @@ fi
 _row worktrees "$(git worktree list | wc -l | tr -d ' ') (including the main one)"
 _row push "${HARNESS_PUSH:-no}"
 
+# The block is refreshed by install and reported here; never rewritten here.
+_blk=$(sed -n '/^<!-- harness:begin /,/^<!-- harness:end -->$/p' "$HARNESS_REPO/AGENTS.md" 2>/dev/null)
+if [ -z "$_blk" ]; then
+	_bad AGENTS.md "no harness block between <!-- harness:begin --> and <!-- harness:end -->"
+else
+	_want=$(printf '%s\n' "$_blk" | sed -n '1s/.*cksum=\([0-9]*\).*/\1/p')
+	_got=$(printf '%s\n' "$_blk" | sed '1d;$d' | cksum | cut -d' ' -f1)
+	if [ "$_want" = "$_got" ]; then
+		_row AGENTS.md "harness block intact"
+	else
+		_bad AGENTS.md "harness block edited: its cksum is $_got, the marker says ${_want:-nothing} — update the marker if the edit is meant"
+	fi
+fi
+
 if [ "$_selftest" = yes ]; then
 	printf '\n  selftest (HEAD, not the working tree)\n'
 	harness_selftest || _fails=$((_fails + 1))

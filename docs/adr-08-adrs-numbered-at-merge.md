@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-21
+- **Superseded by:** adr-2026-09-23-adrs-are-named-by-date
 
 ## Context
 The file shape says `docs/adr-NN-short-kebab-title.md`, `NN` the next number

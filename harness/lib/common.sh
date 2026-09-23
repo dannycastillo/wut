@@ -23,7 +23,7 @@ die() {
 }
 
 # The coordination state directory, shared by every worktree and structurally
-# untrackable by git (ADR-07).
+# untrackable by git (ADR-10).
 #
 # --git-common-dir, never --git-dir or --git-path: those two are per-worktree
 # for this name, and all three spellings return ".git" from the main worktree.
