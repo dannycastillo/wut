@@ -45,4 +45,6 @@ if [ "$_keep" = no ]; then
 fi
 
 rm -f "$_c"
+harness_agents_clear "$_stem"
+harness_event "$_stem" - abandoned "$_branch"
 log "abandon: $_stem released"

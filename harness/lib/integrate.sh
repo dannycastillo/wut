@@ -57,7 +57,8 @@ harness_ig_park() {
 			"$(harness_kv_get "$_ig_sub" head | cut -c1-12)" "$2" "$(printf '%s' "$3" | tr '\n' ' ')"
 	} >"$_ig_pd/$1"
 	[ "$1" = @trunk ] || rm -f "$_ig_sub" "$_ig_sub.body"
-	rm -f "$(harness_ig_file integrate/pending)"
+	rm -f "$(harness_ig_file integrate/pending)" "$(harness_ig_file integrate/packet)"
+	harness_event "$1" - parked "$2: $3"
 	printf 'park %s %s: %s\n' "$1" "$2" "$3"
 }
 
@@ -91,4 +92,5 @@ harness_ig_cleanup() {
 	fi
 	git branch -d "$2" >/dev/null || harness_ig_stop "$1" cleanup-refused "git branch -d $2 refused; the merge stands"
 	rm -f "$(harness_claim_file "$1")" "$(harness_ig_file submitted)/$1" "$(harness_ig_file submitted)/$1.body"
+	harness_agents_clear "$1"
 }

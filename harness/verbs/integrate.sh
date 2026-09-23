@@ -72,7 +72,8 @@ if [ "$_mode" = next ]; then
 		git rev-parse HEAD >"$_green"
 	fi
 	harness_ig_set phase judge
-	harness_ig_packet "$_stem" "$_branch"
+	# To a file as well: a reviewer started later reads it from there.
+	harness_ig_packet "$_stem" "$_branch" | tee "$(harness_ig_file integrate/packet)"
 	exit "$EX_JUDGE"
 fi
 
@@ -114,7 +115,8 @@ if ! git commit -q -F "$_msg"; then
 	git reset -q --hard "$_pre"
 	harness_ig_stop "$_stem" merge-refused "git commit refused the merge — a hook?"
 fi
-rm -f "$_msg" "$_pending"
+rm -f "$_msg" "$_pending" "$(harness_ig_file integrate/packet)"
 git rev-parse HEAD >"$_green"
+harness_event "$_stem" - merged "$(git rev-parse --short HEAD)"
 printf 'merged %s as %s\n' "$_branch" "$(git rev-parse --short HEAD)"
 harness_ig_cleanup "$_stem" "$_branch"
