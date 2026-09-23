@@ -15,10 +15,10 @@ Partly built. `harness help` lists what your copy has.
 - **Built:** `claim`, `abandon`, `path`, `status`, `gate`, `doctor`, `unlock`,
   `help`, `plan`, `dispatch`, `submit`, `check`, `integrate`, and both role
   docs in `harness/roles/`.
-- **Not built yet:** `run`, `pause` and `resume`. `chore-add-the-run-loop`
-  carries them.
+- Every verb in the tables below is built.
 - Until `chore-retire-the-human-merge-gate` lands, `AGENTS.md` still says a
-  human merges every branch. `integrate` is what that human runs.
+  human merges every branch, and an agent that reads it will obey. `run`
+  works today with stub agents; real ones wait on that todo.
 
 ## Setup
 
@@ -66,7 +66,9 @@ A human owns everything the two roles stop on: parks, stale locks, pauses.
 |            | `unlock <name> --force`     | releases a lock whose holder is dead                          |
 |            | `plan`, `dispatch`          | says what can run and why; claims one and starts an agent     |
 |            | `log [<todo>]`              | events and merge trailers, one timeline                       |
-|            | `run`, `pause`, `resume` *  | works a set of todos unattended; stops it; restarts it        |
+|            | `run [<todo>...]`           | works a set of todos unattended, until idle or a stop         |
+|            | `pause`, `resume`           | stops new claims; queued work still merges; lifts it          |
+|            | `stop [--agents]`           | kills the loop and every agent; claims and trees stay         |
 | anyone     | `help`                      | lists the verbs in this copy                                  |
 
 Exit codes: `0` ok, `1` failed, `2` usage, `3` paused, `4` the environment
@@ -74,7 +76,31 @@ cannot run the gate, `10` judgment needed.
 
 ## Running N workers
 
-Until `run` lands, a human starts each worker:
+`run` is a shell loop, not an agent (ADR-10). It holds no state: every tick it
+reaps exited agents, kills any past `HARNESS_AGENT_TIMEOUT`, dispatches
+workers up to `HARNESS_MAX_WORKERS` from `plan`, and moves the queue one step:
+`integrate --next`, then a detached reviewer for the packet. It exits when
+nothing is runnable and nothing is in flight, or on a stop a human owns.
+
+```sh
+harness run fix-a fix-b --detach           # remembers the set; a bare run reuses it
+harness run --all --detach                 # every todo
+harness status                             # claims, agents, pending, parks
+harness log                                # what happened
+harness pause "trunk needs a look"         # no new claims; queued work still merges
+harness stop                               # kill the loop and every agent
+```
+
+- Killing the loop kills nothing else. Agents finish and submit; a restarted
+  loop finds their submissions and carries on.
+- Dispatch is at most once. A worker that exits without submitting, a park and
+  a reject are terminal until a human acts: `abandon` to run it again, or
+  resubmit from its worktree.
+- A reviewer that exits with the judgment pending is reported `lost` and never
+  respawned. `harness dispatch reviewer --detach` starts another by hand.
+- A park on `@trunk` stops the loop. Trunk is a human's to fix.
+
+By hand, one worker at a time:
 
 ```sh
 harness plan                               # what can run now, and why the rest cannot
