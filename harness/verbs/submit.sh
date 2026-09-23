@@ -79,6 +79,7 @@ fi
 	printf 'epoch=%s\n' "$(date -u '+%s')"
 	printf 'escalate=%s\n' "$_esc"
 	printf '%s' "$_notes" | sed '/^$/d; s/^/note=/'
+	sed -n '/^park=/p' "$(harness_state_dir)/parked/$_stem" 2>/dev/null || :
 } >"$_tmp"
 
 # The entry is what the integrator polls for, so it lands last and whole.

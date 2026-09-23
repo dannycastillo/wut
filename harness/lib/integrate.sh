@@ -41,15 +41,20 @@ harness_ig_trunk_ready() {
 
 # A parked item leaves the queue with its branch, worktree and claim exactly as
 # they were. A @trunk park is trunk's fault, so the submission stays queued.
+# The park= lines are the item's whole park history: submit carries them into
+# the resubmission, and the merge writes them as Harness-Parked trailers.
 harness_ig_park() {
 	_ig_pd=$(harness_ig_file parked)
 	_ig_sub="$(harness_ig_file submitted)/$1"
+	_ig_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 	mkdir -p "$_ig_pd"
 	{
 		printf 'code=%s\n' "$2"
 		printf 'detail=%s\n' "$3"
-		printf 'parked=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+		printf 'parked=%s\n' "$_ig_at"
 		[ "$1" = @trunk ] || cat "$_ig_sub" 2>/dev/null || :
+		[ "$1" = @trunk ] || printf 'park=%s %s %s: %s\n' "$_ig_at" \
+			"$(harness_kv_get "$_ig_sub" head | cut -c1-12)" "$2" "$(printf '%s' "$3" | tr '\n' ' ')"
 	} >"$_ig_pd/$1"
 	[ "$1" = @trunk ] || rm -f "$_ig_sub" "$_ig_sub.body"
 	rm -f "$(harness_ig_file integrate/pending)"

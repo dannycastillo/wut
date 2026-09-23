@@ -87,7 +87,7 @@ park:?*)
 	[ -n "$_detail" ] || die "$EX_USAGE" "integrate: --park needs --detail \"<what>\""
 	harness_ig_park "$_stem" "$_arg" "$_detail" && exit "$EX_OK"
 	;;
-verdict:pass) ;;
+verdict:pass) harness_ig_set verdict pass ;;
 *) die "$EX_USAGE" "integrate: --continue takes --verdict pass, --reject \"<box>\" or --park <code>" ;;
 esac
 { [ "$(harness_kv_get "$_pending" phase)" = judge ] && [ "$(harness_kv_get "$_pending" check || :)" = clean ]; } ||

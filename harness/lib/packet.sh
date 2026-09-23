@@ -47,13 +47,15 @@ harness_ig_packet() {
 # reads it as the patch divider and interpret-trailers then finds no block.
 harness_ig_message() {
 	_ig_sub="$(harness_ig_file submitted)/$1"
+	_ig_p=$(harness_ig_file integrate/pending)
 	printf "Merge branch '%s'\n\n" "$2"
 	awk 1 "$_ig_sub.body"
 	printf '\nHarness-Todo: %s\n' "$(harness_todo_file "$1")"
 	printf 'Harness-Worker: %s\n' "$(harness_kv_get "$_ig_sub" agent || :)"
 	printf 'Harness-Gate: baseline:ok merge:ok (%s)\n' "$HARNESS_GATES"
-	printf 'Harness-Check: clean\n'
-	printf 'Harness-Donewhen: pass\n'
+	printf 'Harness-Check: %s\n' "$(harness_kv_get "$_ig_p" check || :)"
+	printf 'Harness-Donewhen: %s\n' "$(harness_kv_get "$_ig_p" verdict || :)"
 	printf 'Harness-Review: none (HARNESS_REVIEW=%s)\n' "${HARNESS_REVIEW:-never}"
+	sed -n 's/^park=/Harness-Parked: /p' "$_ig_sub"
 	sed -n 's/^note=/Harness-Notes: /p' "$_ig_sub"
 }
