@@ -60,27 +60,27 @@ harness_touches_meet() {
 	return 1
 }
 
-# Per open todo, by priority, tab-separated: run|hold|claimed, stem, priority|reason|agent.
+# Per active claim: claimed, stem, agent, branch. Then per unclaimed todo, by
+# priority: run|hold, stem, priority|reason. Tab-separated.
 harness_plan() {
 	_tab=$(printf '\t')
 	_barrier=$(cat "$(harness_state_dir)/BARRIER" 2>/dev/null) || _barrier=
-	_active=
+	_active='' _nact=0
 	for _s in $(harness_claim_stems); do
-		_active="$_active$_s$_tab$(harness_touches_norm "$(harness_kv_get "$(harness_claim_file "$_s")" touches)")
+		_c=$(harness_claim_file "$_s")
+		_active="$_active$_s$_tab$(harness_touches_norm "$(harness_kv_get "$_c" touches)")
 "
+		_nact=$((_nact + 1))
+		printf 'claimed\t%s\t%s\t%s\n' "$_s" "$(harness_kv_get "$_c" agent)" "$(harness_kv_get "$_c" branch)"
 	done
-	_nact=$(harness_claim_count)
 	for _f in todo/*.md; do
 		[ -f "$_f" ] || continue
 		printf '%s %s\n' "$(harness_todo_field "$_f" Priority)" "$(basename -- "$_f" .md)"
 	done | sed 's/^high/1 &/; s/^medium/2 &/; s/^low/3 &/' | sort -k1,1n -k3,3 | {
 		_runs=
 		while read -r _ _pr _s; do
+			[ -f "$(harness_claim_file "$_s")" ] && continue
 			_f=$(harness_todo_file "$_s")
-			if [ -f "$(harness_claim_file "$_s")" ]; then
-				printf 'claimed\t%s\t%s\n' "$_s" "$(harness_kv_get "$(harness_claim_file "$_s")" agent)"
-				continue
-			fi
 			_why=
 			_bl=$(harness_open_blockers "$_f")
 			_tc=$(harness_touches_norm "$(harness_todo_field "$_f" Touches)")
