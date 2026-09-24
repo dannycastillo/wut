@@ -3,7 +3,7 @@
 - **Priority:** medium
 - **Branch:** chore/add-the-install-script
 - **Touches:** ai-harness/*, .ai-harness.conf, AGENTS.md, .claude/*
-- **Blocked by:** chore-rename-the-harness-to-ai-harness, chore-add-the-platform-adapters
+- **Blocked by:** —
 
 ## Goal
 `ai-harness` installs into a repo that has never seen it.
@@ -15,18 +15,27 @@ empties in a few sessions — the harness does not pay for itself here alone.
 
 ## Notes
 
-### The name is settled
+### The names
 
 `ai-harness` is the project, `aih` is the command, and every file, variable,
-trailer and marker follows the project; the table and the launcher are in
-chore-rename-the-harness-to-ai-harness, which lands first. This todo only
-installs what that one names.
+function, trailer and marker follows the project: `ai-harness/`,
+`.ai-harness.conf`, `.git/ai-harness/`, `AI_HARNESS_*`, `ai_harness_*`,
+`AI-Harness-*`, `<!-- ai-harness:begin -->`. No `ai-harness` command ships.
+The launcher is the two-line `~/.local/bin/aih` that `doctor` prints when
+`aih` is not on PATH.
+
+### Adapters are optional
+
+The loop starts agents through `AI_HARNESS_AGENT_CMD` and needs no adapter;
+adapters are pointers for a human starting a role in an editor. Copy
+`ai-harness/adapters/` when it exists and say nothing when it does not, so
+this ships whether or not chore-add-the-platform-adapters ever lands.
 
 ### install.sh
 
 Copies the `ai-harness/` tree, detects the gate and writes the config, inserts the
 marker-delimited AGENTS.md block (or creates AGENTS.md from the template),
-installs the launcher if needed, and wires a named adapter. It installs no
+installs the launcher if needed, and copies the adapters if any. It installs no
 git hooks (adr-2026-09-23-the-harness-installs-no-git-hooks).
 
 Detection, in order of preference: `go.mod`; `package.json` scripts that

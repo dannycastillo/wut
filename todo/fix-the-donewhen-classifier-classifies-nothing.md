@@ -6,64 +6,49 @@
 - **Blocked by:** —
 
 ## Goal
-The judgment packet's `[from diff]` / `[needs running]` split either earns its
-fourteen lines of awk, or it goes.
+The judgment packet prints each Done-when box plainly, and the
+`[from diff]` / `[needs running]` classifier is gone.
 
 ## Why
-Run `ai_harness_ig_boxes` over every open todo: **5 of 121 boxes** come back
-`[from diff]`, and three of the five belong to one todo. Everything else
-defaults to `[needs running]`, which is the safe direction and very nearly the
-only direction.
+Measured twice. When this was filed, `ai_harness_ig_boxes` over every open
+todo labelled 5 of 121 boxes `[from diff]`. On 2026-09-23 it is 2 of 104.
+Everything else defaults to `[needs running]`, which is the safe direction
+and very nearly the only direction, so the label carries no information and
+costs the reviewer a line per box telling it not to trust the label.
 
 The first real integration run showed the cost. All five boxes of
 `chore-tidy-the-scanner` were marked `[needs running]`, including
 "`countMatches`'s parameters are named for their contents" and "`scanChunk`'s
-return type expresses zero-or-one" — two static properties of the tree,
-readable from the patch in the time it takes to read the label telling you not
-to. A classifier that is right but silent costs the reviewer the work it was
-written to save.
+return type expresses zero-or-one", two static properties of the tree that
+read from the patch faster than from the label.
 
 ## Notes
 
-### Why it abstains
+### The decision is delete, not widen
 
-`packet.sh:11-12` whitelists phrasing and then vetoes on verbs:
+`packet.sh:5-24` whitelists six phrases fitted to the todos that existed when
+it was written and vetoes on verbs. Widening it means fitting it again to
+today's todos, and it goes stale the same way. The packet's header already
+tells the reviewer to decide which boxes need running; the reviewer is an
+agent reading a diff, and that judgment is its job.
 
-```awk
-if (l ~ /unchanged|restate|no longer (says|names)|carries|names no|is deleted/ &&
-    l !~ /(^|[^a-z])(pass|fail|run|refuse|merge|park|return|behave|print|exit|reach|list|work)(e?s)?([^a-z]|$)/)
-```
+Inverting the default is the one direction to refuse. A wrong
+`[needs running]` wastes a minute; a wrong `[from diff]` means a box is never
+checked and the merge claims otherwise.
 
-The whitelist is six phrases drawn from the todos that existed when it was
-written, so it recognizes the boxes it was fitted to and nothing since. Boxes it
-misses that are plainly static: "Every item in the 'delete outright' list above
-is gone" and "`package ui`, `package cmd` and `package main` each have a package
-doc" (`chore-trim-the-comments`), and both scanner boxes above.
+### What to do
 
-### The two ways out
-
-- **Widen it.** Keep the default and grow the static side — a named identifier
-  plus `is named|expresses|has|each have|is gone|is absent`. Additive, testable
-  against the 121 boxes now on record, and it can only ever be wrong in the
-  direction of asking for more work.
-- **Delete it.** Print the boxes plainly and let the reviewer judge which need
-  running, which is what the packet's own header already instructs. Removes the
-  whole function and the risk below.
-
-Inverting the default — assume `[from diff]` unless a behavioural marker appears
-— is the one direction to refuse. A wrong `[needs running]` wastes a minute; a
-wrong `[from diff]` means a box is never checked and the merge claims otherwise.
-
-Whichever way it goes, `AI-Harness-Donewhen` should stop being a literal — see
-`fix-the-harness-forgets-its-parks`, which owns `packet.sh` for that and will
-hold this todo in `plan` until it lands. The two are small; do them in order.
+- Delete `ai_harness_ig_boxes` and print the boxes from the todo as they are,
+  one `- ` line each, under the same heading in `ai_harness_ig_packet`.
+- `AI-Harness-Donewhen` already prints the reviewer's verdict, not a
+  classification; leave it.
+- The fixture: `git show a114717^:todo/chore-tidy-the-scanner.md` is the
+  first todo a real run judged. Its five boxes should come out unlabelled and
+  intact.
 
 ## Done when
-- [ ] Either the from-diff share across the backlog is materially higher than
-      5 of 121, measured by running `ai_harness_ig_boxes` over `todo/*.md`, or
-      `ai_harness_ig_boxes` is gone and the packet prints the boxes unlabelled
-- [ ] No box is labelled `[from diff]` unless it names a static property of the
-      tree — checked by hand against every box the change newly labels
-- [ ] `chore-tidy-the-scanner`'s five boxes are used as the fixture, since they
-      are the first set a real run judged
+- [ ] `ai_harness_ig_boxes` is gone and the packet prints every box unlabelled
+- [ ] The five boxes of the scanner fixture appear in the packet exactly as
+      written in the todo, multi-line boxes joined onto one line
+- [ ] `aih check --selftest` and `aih doctor --selftest` still pass
 - [ ] `aih gate --full` green, `sh -n` clean

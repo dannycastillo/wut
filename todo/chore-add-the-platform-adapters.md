@@ -3,7 +3,7 @@
 - **Priority:** low
 - **Branch:** chore/add-the-platform-adapters
 - **Touches:** ai-harness/adapters/*, .claude/*
-- **Blocked by:** chore-retire-the-human-merge-gate
+- **Blocked by:** —
 
 ## Goal
 Starting a worker on Claude Code or Cursor is a slash command or a rule, and
@@ -18,8 +18,8 @@ being AI-agnostic.
 
 Each adapter is a pointer and nothing more.
 `.claude/skills/ai-harness-worker/SKILL.md` says to read `ai-harness/roles/worker.md`
-and follow it; same shape for the reviewer. Both role docs exist once
-`chore-rename-the-integrator-to-reviewer` lands. Cursor gets
+and follow it; same shape for the reviewer. Both role docs are in
+`ai-harness/roles/`. Cursor gets
 `.cursor/rules/*.mdc` doing the same thing.
 
 The loop starts agents through `AI_HARNESS_AGENT_CMD` with a one-line prompt, so
