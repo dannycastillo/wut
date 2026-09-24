@@ -94,6 +94,34 @@ func TestFrameFitsTerminal(t *testing.T) {
 	}
 }
 
+// "?" toggles full help through the list's own keymap. The block it draws is
+// taller than short help, so resize()'s budget is not enough on its own —
+// layout() has to run again on the toggle, or full help pushes the frame
+// past what the terminal has.
+func TestFullHelpStillFitsAndToggleWorks(t *testing.T) {
+	for _, h := range []int{24, 40, 60} {
+		m := size(t, newModel(sample(30)), 80, h)
+
+		full := press(t, m, tea.KeyPressMsg{Code: '?', Text: "?"})
+		if !full.list.Help.ShowAll {
+			t.Fatalf("height %d: %q did not toggle full help", h, "?")
+		}
+		if got, budget := lipgloss.Height(full.frame()), h-2; got > budget {
+			t.Errorf("height %d: full help frame is %d rows, budget %d:\n%s",
+				h, got, budget, ansi.Strip(full.frame()))
+		}
+
+		short := press(t, full, tea.KeyPressMsg{Code: '?', Text: "?"})
+		if short.list.Help.ShowAll {
+			t.Errorf("height %d: a second %q did not close full help", h, "?")
+		}
+		if got, want := short.frame(), m.frame(); got != want {
+			t.Errorf("height %d: toggling full help and back left the frame different:\ngot  %q\nwant %q",
+				h, got, want)
+		}
+	}
+}
+
 // Every width, not a sample: the help overflows only in a band, and three
 // sampled widths walked straight past it.
 func TestRowsNeverExceedTerminalWidth(t *testing.T) {
@@ -166,15 +194,17 @@ func TestChromeShedsBeforeResults(t *testing.T) {
 			t.Errorf("height %d: pagination shown = %v, want %v:\n%s", tc.height, got, tc.wantPageDots, frame)
 		}
 
-		// HelpStyle's top padding is one of the two rows helpRows pays for.
+		// HelpStyle's bottom padding is one of the two rows helpRows pays for:
+		// help now sits above the results, so the blank row that separates them
+		// trails it rather than leading it.
 		if tc.wantHelp {
 			lines := strings.Split(frame, "\n")
 			for i, line := range lines {
 				if !strings.Contains(line, "copy") {
 					continue
 				}
-				if i == 0 || strings.TrimSpace(lines[i-1]) != "" {
-					t.Errorf("height %d: help is not preceded by a blank row:\n%s", tc.height, frame)
+				if i+1 >= len(lines) || strings.TrimSpace(lines[i+1]) != "" {
+					t.Errorf("height %d: help is not followed by a blank row:\n%s", tc.height, frame)
 				}
 				break
 			}
@@ -182,19 +212,41 @@ func TestChromeShedsBeforeResults(t *testing.T) {
 	}
 }
 
+// The hints are instructions: they belong above the rows they explain, not
+// after them, and pagination stays with the results it paginates.
+func TestHelpRendersAboveResultsPaginationBelow(t *testing.T) {
+	m := size(t, newModel(sample(30)), 80, 24)
+	frame := ansi.Strip(m.frame())
+
+	if !m.showHelp || !m.list.ShowPagination() {
+		t.Fatalf("fixture must show both help and pagination at 80x24:\n%s", frame)
+	}
+
+	helpIdx := strings.Index(frame, "copy")
+	resultIdx := strings.Index(frame, "tofu init")
+	// LastIndex: help's own short-help entries are "•"-separated too, so the
+	// first "•" in the frame is inside help, not the pagination dots below.
+	dotsIdx := strings.LastIndex(frame, "•")
+
+	if helpIdx < 0 || resultIdx < 0 || dotsIdx < 0 {
+		t.Fatalf("expected help, a result and pagination dots all in the frame:\n%s", frame)
+	}
+	if !(helpIdx < resultIdx && resultIdx < dotsIdx) {
+		t.Errorf("want order help(%d) < result(%d) < pagination(%d):\n%s", helpIdx, resultIdx, dotsIdx, frame)
+	}
+}
+
 // Without SetShowTitle(false) the header comes back reading "List", which is
 // bubbles' default rather than anything this package set.
-func TestFrameOpensOnAResult(t *testing.T) {
+func TestFrameOpensOnABlankRow(t *testing.T) {
 	m := size(t, newModel(sample(5)), 80, 24)
 	lines := strings.Split(m.frame(), "\n")
 
 	// cmd/root.go prints the copied-command line onto this row, which is why
-	// frame() leads with "\n" and why nothing may be drawn above the results.
+	// frame() leads with "\n" and why nothing — help included — may be drawn
+	// above it.
 	if lines[0] != "" {
 		t.Errorf("frame opens with %q, want an empty row", lines[0])
-	}
-	if got := ansi.Strip(lines[1]); !strings.Contains(got, "tofu init") {
-		t.Errorf("row 1 is %q, want the first result", got)
 	}
 	if strings.Contains(ansi.Strip(m.frame()), "List") {
 		t.Errorf("bubbles' default title leaked into the frame:\n%s", m.frame())
