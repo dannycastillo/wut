@@ -99,14 +99,24 @@ ai_harness_ig_cleanup() {
 # Landed means the todo is gone from trunk and the head is an ancestor of it;
 # either alone is not enough. A fresh claim's head is trunk itself, and a todo
 # deleted on purpose leaves a branch trunk never took.
+# The recorded head can go stale: a hand amend after submit or park moves the
+# branch without touching that record, so each candidate is ancestor-tested in
+# turn and the branch ref is tried last, after the record it was recorded from.
 ai_harness_ig_landed_head() {
 	_lh_c=$(ai_harness_claim_file "$1")
 	[ -f "$_lh_c" ] || return 1
 	! git cat-file -e "$AI_HARNESS_TRUNK:$(ai_harness_kv_get "$_lh_c" todo)" 2>/dev/null || return 1
-	_lh_h=$(ai_harness_kv_get "$(ai_harness_ig_file submitted)/$1" head ||
-		ai_harness_kv_get "$(ai_harness_ig_file parked)/$1" head ||
-		git rev-parse -q --verify "refs/heads/$(ai_harness_kv_get "$_lh_c" branch)") || return 1
-	[ -n "$_lh_h" ] && git merge-base --is-ancestor "$_lh_h" "$AI_HARNESS_TRUNK" 2>/dev/null && printf '%s\n' "$_lh_h"
+	_lh_b=$(ai_harness_kv_get "$_lh_c" branch)
+	for _lh_h in \
+		"$(ai_harness_kv_get "$(ai_harness_ig_file submitted)/$1" head)" \
+		"$(ai_harness_kv_get "$(ai_harness_ig_file parked)/$1" head)" \
+		"$(git rev-parse -q --verify "refs/heads/$_lh_b" 2>/dev/null)"; do
+		[ -n "$_lh_h" ] || continue
+		git merge-base --is-ancestor "$_lh_h" "$AI_HARNESS_TRUNK" 2>/dev/null || continue
+		printf '%s\n' "$_lh_h"
+		return 0
+	done
+	return 1
 }
 
 # Clear every landed claim as a merge would have: worktree, branch, claim,
