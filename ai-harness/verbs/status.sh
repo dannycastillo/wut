@@ -6,7 +6,9 @@ ai_harness_agents_reap
 _stems=$(ai_harness_claim_stems)
 if [ -n "$_stems" ]; then
 	_any=yes
-	printf 'claims (%s of %s)\n' "$(ai_harness_claim_count)" "$AI_HARNESS_MAX_WORKERS"
+	_slots=$(ai_harness_claim_count)
+	printf 'claims (%s of %s slots, %s holding paths only)\n' \
+		"$_slots" "$AI_HARNESS_MAX_WORKERS" "$(($(printf '%s\n' "$_stems" | grep -c .) - _slots))"
 	for _s in $_stems; do
 		_c=$(ai_harness_claim_file "$_s")
 		_wt=$(ai_harness_kv_get "$_c" worktree)
