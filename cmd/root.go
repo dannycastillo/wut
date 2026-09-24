@@ -30,8 +30,11 @@ var rootCmd = &cobra.Command{
 	Use:   "wut",
 	Short: "Search for command line snippets",
 	Long: `Wut is a search utility that lets you find terminal commands
-from perviously curated notes. Store a txt file in a ~/.wut
-directory that follows the following basic format:
+from curated notes. It ships with a set of snippets built in, so
+it works with no setup.
+
+To add your own, store a txt file in a ~/.wut directory that
+follows the following basic format:
 
 
 # check size of a directory
@@ -41,7 +44,10 @@ du -sh DIR
 du -sh * | sort -rh | head -n 10
 
 
-Then you can call the wut command followed by a search phrase to 
+Your own snippets rank above the shipped ones, so they show up
+first.
+
+Then you can call the wut command followed by a search phrase to
 recall what the commands are. For example the following query:
 
 wut directory size
@@ -50,7 +56,7 @@ will return the following results in a UI picker:
 
 du -sh DIR   # check size of a directory
 
-The goal is to make it easiy to quickly recall and copy commands when working
+The goal is to make it easy to quickly recall and copy commands when working
 in shell environments.`,
 	Args:          cobra.MinimumNArgs(1),
 	SilenceErrors: true,
