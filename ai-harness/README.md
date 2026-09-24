@@ -17,8 +17,8 @@ Partly built. `aih help` lists what your copy has.
 - `AGENTS.md` names the two roles and no language. Trunk is written only by
   `integrate`, as a rule rather than a mechanism: a merge made by hand shows
   in `aih log` as `by hand`, since it carries no trailers.
-- Not yet lifted into another repo: `install.sh` and the adapters are open
-  todos.
+- Not yet lifted into another repo: `install.sh` is an open todo. The
+  adapters are in `ai-harness/adapters/`.
 
 ## Setup
 

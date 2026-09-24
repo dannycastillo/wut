@@ -35,8 +35,9 @@ The loop's exit code and its reason are in the log only, too.
   ```
 
   States: `running` (claim with a live worker), `submitted`, `parked <code>`,
-  `merged <sha>`, `held <reason>`, `queued` (runnable, not yet reached),
-  `gone` (no todo file and no merge event, i.e. merged by hand or deleted).
+  `merged <sha>` (the `merged` event), `landed <sha>` (the `landed` event
+  the sweep writes for a hand merge), `held <reason>`, `queued` (runnable,
+  not yet reached), `gone` (no todo file and neither event).
 - The `rc` and the stop reason come from the last `@run stopped` or `idle`
   event after the last `started`; a loop still running shows `running` and
   the lock line already printed.
