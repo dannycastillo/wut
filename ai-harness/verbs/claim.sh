@@ -104,8 +104,16 @@ fi
 # This is the claim. Branch creation takes git's ref lock, so of several racers
 # exactly one creates the branch and the rest fail here; the file below only
 # annotates what git already decided.
-git worktree add -b "$_branch" "$_wt" "$AI_HARNESS_TRUNK" >/dev/null 2>&1 ||
-	_bail "$EX_FAIL" "claim: $_branch already exists, so $_stem is taken (or the worktree path is)"
+git branch "$_branch" "$AI_HARNESS_TRUNK" >/dev/null 2>&1 ||
+	_bail "$EX_FAIL" "claim: $_branch already exists, so $_stem is taken — git branch -d it to offer this again"
+
+# Two steps rather than worktree add -b: that creates the branch first and
+# leaves it when the directory fails, and plan then holds the todo for a
+# branch nobody claimed. Here the branch is ours, so deleting it is safe.
+if ! _err=$(git worktree add -q "$_wt" "$_branch" 2>&1 >/dev/null); then
+	git branch -D "$_branch" >/dev/null 2>&1
+	_bail "$EX_FAIL" "claim: could not create the worktree at $_wt — ${_err#fatal: }"
+fi
 
 mkdir -p "$(ai_harness_claims_dir)"
 printf 'todo=%s\nbranch=%s\nworktree=%s\ntouches=%s\nagent=%s\nclaimed=%s\nbase=%s\n' \
