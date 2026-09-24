@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build ./...
+      - if: ${{ !cancelled() }}
+        run: go vet ./...
+      - if: ${{ !cancelled() }}
+        run: go test -race ./...
+
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            printf '%s\n' "$out"
+            exit 1
+          fi
+      - if: ${{ !cancelled() }}
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2

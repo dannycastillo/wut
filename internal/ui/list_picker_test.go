@@ -231,7 +231,7 @@ func TestHelpRendersAboveResultsPaginationBelow(t *testing.T) {
 	if helpIdx < 0 || resultIdx < 0 || dotsIdx < 0 {
 		t.Fatalf("expected help, a result and pagination dots all in the frame:\n%s", frame)
 	}
-	if !(helpIdx < resultIdx && resultIdx < dotsIdx) {
+	if helpIdx >= resultIdx || resultIdx >= dotsIdx {
 		t.Errorf("want order help(%d) < result(%d) < pagination(%d):\n%s", helpIdx, resultIdx, dotsIdx, frame)
 	}
 }
