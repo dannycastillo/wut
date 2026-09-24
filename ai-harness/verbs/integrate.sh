@@ -38,6 +38,12 @@ _green=$(ai_harness_ig_file integrate/green)
 _q=$(ai_harness_ig_file submitted)
 mkdir -p "$(dirname -- "$_pending")" "$(ai_harness_ig_file tmp)"
 
+# Before the queue is consulted: a hand-merged claim has nothing queued, and
+# this is the verb a human runs after merging.
+if [ "$_mode" = next ] && ai_harness_lock_acquire integrate; then
+	ai_harness_ig_landed_sweep
+	ai_harness_lock_release integrate
+fi
 while [ "$_mode" = next ] && [ -z "$(ai_harness_ig_oldest)" ]; do
 	[ "$_wait" = yes ] || die "$EX_OK" "integrate: nothing submitted"
 	sleep "${AI_HARNESS_INTEGRATE_POLL:-10}"
@@ -50,7 +56,9 @@ if [ "$_mode" = next ] && [ -f "$_pending" ]; then
 fi
 
 if [ "$_mode" = next ]; then
+	ai_harness_ig_landed_sweep
 	_stem=$(ai_harness_ig_oldest)
+	[ -n "$_stem" ] || die "$EX_OK" "integrate: nothing submitted"
 	_branch=$(ai_harness_kv_get "$_q/$_stem" branch)
 	ai_harness_ig_trunk_ok
 	rm -f "$(ai_harness_ig_file parked/@trunk)"
