@@ -269,7 +269,7 @@ the backlog is `high`, none of it is — re-rank rather than inflate.
 grep '\*\*Priority:\*\*' todo/*.md
 ```
 
-An agent filing a todo proposes a priority. Danny's edit is final, and priority
+An agent filing a todo proposes a priority. The maintainer's edit is final, and priority
 is the **only** field worth editing in place — unlike an ADR, a todo is a plan,
 not a record. Rewrite it freely while it's still open.
 
@@ -348,4 +348,4 @@ doing. Don't file what you're about to do anyway, and don't file a vague
 "improve X" — if you can't write the **Done when**, you don't understand it
 well enough to hand off.
 
-Filing is not prioritizing. Danny decides what gets picked up.
+Filing is not prioritizing. The maintainer decides what gets picked up.
