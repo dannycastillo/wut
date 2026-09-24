@@ -3,7 +3,7 @@
 - **Priority:** medium
 - **Branch:** doc/write-the-readme
 - **Touches:** README.md
-- **Blocked by:** doc-record-demo-gifs, doc-add-license
+- **Blocked by:** doc-add-license
 
 ## Goal
 `README.md` shows what the tool does, how to install it, how to use it, and how
@@ -20,15 +20,14 @@ else. This is the portfolio piece's front door.
 
 1. One line saying what it is: search your own command-line notes from the
    terminal and copy the result to the clipboard.
-2. The gif from `doc/record-demo-gifs`, above the fold. Before any prose.
-3. Install — Homebrew first once `chore/homebrew-release` lands, `go install`
+2. Install — Homebrew first once `chore/homebrew-release` lands, `go install`
    second, build-from-source third.
-4. Usage — `wut <words>`, the picker keys, what enter does.
-5. Adding your own snippets — the `~/.wut/*.txt` format with a real example,
+3. Usage — `wut <words>`, the picker keys, what enter does.
+4. Adding your own snippets — the `~/.wut/*.txt` format with a real example,
    and that your own snippets rank above the shipped ones.
-6. What ships — roughly 200 snippets across the topic files, embedded in the
+5. What ships — roughly 200 snippets across the topic files, embedded in the
    binary, working with no setup.
-7. License, one line, linking `LICENSE` and `THIRD_PARTY_LICENSES.md`.
+6. License, one line, linking `LICENSE` and `THIRD_PARTY_LICENSES.md`.
 
 ### Things worth getting right
 
@@ -42,13 +41,12 @@ else. This is the portfolio piece's front door.
 - Keep the developer section to what someone needs to run the tests: `go test
   ./...`, and a pointer to AGENTS.md for how work is organized.
 
-### Blocked on two things
+### Blocked on the license
 
-The gif because it belongs above the fold, and the license because the README
-links it. Everything else can be drafted before those land.
+The README links it. Everything else can be drafted before it lands.
 
 ## Done when
-- [ ] `README.md` exists with the demo gif above the fold
+- [ ] `README.md` exists
 - [ ] Install instructions cover Homebrew (or note it's coming), `go install`,
       and building from source
 - [ ] The `~/.wut` snippet format is shown as a literal example
