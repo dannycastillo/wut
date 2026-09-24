@@ -26,7 +26,7 @@ every tag. Nobody edits the formula by hand.
 and a review queue. A personal tap works on day one; core is a later decision if
 the project gets traction.
 
-### Manual steps only Danny can do
+### Manual steps only the maintainer can do
 
 1. Create the `dannycastillo/homebrew-tap` repo, public, with a README.
 2. Create a GitHub personal access token with write access to it.
