@@ -38,6 +38,39 @@ func TestScanFileStampsOrigin(t *testing.T) {
 	}
 }
 
+// A command spanning several lines — a for loop here — comes back with the
+// newlines that make it valid shell still in place, not run together, and
+// scanFile's chunking doesn't leave a trailing blank line behind either.
+func TestScanFileJoinsMultiLineCommandWithNewline(t *testing.T) {
+	fsys := fstest.MapFS{
+		"notes.txt": &fstest.MapFile{Data: []byte(
+			"# loop over text files\nfor f in *.txt; do\n  echo \"$f\"\ndone\n\n# next snippet\necho done\n",
+		)},
+	}
+
+	query := Query{Joined: "loop over text files", Split: []string{"loop", "over", "text", "files"}}
+
+	ch := make(chan Result, 4)
+	src := snippetSource{fsys: fsys, path: "notes.txt", label: "notes.txt"}
+	if err := scanFile(src, query, ch); err != nil {
+		t.Fatalf("scanFile: %v", err)
+	}
+	close(ch)
+
+	var got []Result
+	for r := range ch {
+		got = append(got, r)
+	}
+	if len(got) != 1 {
+		t.Fatalf("%d results, want 1", len(got))
+	}
+
+	want := "for f in *.txt; do\n  echo \"$f\"\ndone"
+	if got[0].Cmd != want {
+		t.Errorf("scanFile: Cmd = %q, want %q", got[0].Cmd, want)
+	}
+}
+
 // scanFile's error names src.path, which fsys knows nothing about outside
 // itself; the rewrite swaps in the caller-facing label.
 func TestScanFileRewritesPathErrorLabel(t *testing.T) {
@@ -119,17 +152,18 @@ func TestCountMatches(t *testing.T) {
 	}
 }
 
-// buildMatch's line concatenation has no separator, pinned here as-is;
-// fix/multi-line-snippet-join owns deciding whether that's the right join.
-func TestBuildMatchConcatenatesMultiLineDescAndCmd(t *testing.T) {
+// Cmd keeps real newlines, since a multi-line command (a heredoc, a for
+// loop) is only still valid shell with the lines kept apart. Desc joins
+// with a space instead: it renders as prose on one picker row.
+func TestBuildMatchJoinsCmdWithNewlineDescWithSpace(t *testing.T) {
 	chunk := "# first line\n# second line\ndocker ps\ndocker stop $(docker ps -q)"
 
 	got := buildMatch(chunk, 777)
 
-	if want := "# first line# second line"; got.Desc != want {
+	if want := "# first line # second line"; got.Desc != want {
 		t.Errorf("buildMatch: Desc = %q, want %q", got.Desc, want)
 	}
-	if want := "docker psdocker stop $(docker ps -q)"; got.Cmd != want {
+	if want := "docker ps\ndocker stop $(docker ps -q)"; got.Cmd != want {
 		t.Errorf("buildMatch: Cmd = %q, want %q", got.Cmd, want)
 	}
 	if got.Score != 777 {
