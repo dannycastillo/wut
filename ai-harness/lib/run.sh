@@ -84,6 +84,10 @@ ai_harness_run_dispatch() {
 # Prints a stop reason and fails when the loop must exit; otherwise advances
 # the queue by one step at most.
 ai_harness_run_judge() {
+	if ai_harness_lock_acquire integrate; then
+		ai_harness_ig_landed_sweep
+		ai_harness_lock_release integrate
+	fi
 	_rj_p=$(ai_harness_ig_file integrate/pending)
 	if [ -f "$_rj_p" ]; then
 		_rj_stem=$(ai_harness_kv_get "$_rj_p" stem)

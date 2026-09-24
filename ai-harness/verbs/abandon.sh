@@ -20,6 +20,9 @@ _c=$(ai_harness_claim_file "$_stem")
 [ -f "$_c" ] || die "$EX_FAIL" "abandon: $_stem is not claimed"
 _branch=$(ai_harness_kv_get "$_c" branch)
 _wt=$(ai_harness_kv_get "$_c" worktree)
+_sub="$(ai_harness_ig_file submitted)/$_stem"
+[ ! -f "$_sub" ] || [ "$_force" = yes ] ||
+	die "$EX_FAIL" "abandon: $_stem is submitted and waits for integrate — let it merge, or --force withdraws it"
 
 if [ -d "$_wt" ]; then
 	# Plain remove refuses when the worktree is dirty, which is exactly when
@@ -44,7 +47,7 @@ if [ "$_keep" = no ]; then
 	fi
 fi
 
-rm -f "$_c"
+rm -f "$_c" "$_sub" "$_sub.body" "$(ai_harness_ig_file parked)/$_stem"
 ai_harness_agents_clear "$_stem"
 ai_harness_event "$_stem" - abandoned "$_branch"
 log "abandon: $_stem released"

@@ -94,3 +94,38 @@ ai_harness_ig_cleanup() {
 	rm -f "$(ai_harness_claim_file "$1")" "$(ai_harness_ig_file submitted)/$1" "$(ai_harness_ig_file submitted)/$1.body"
 	ai_harness_agents_clear "$1"
 }
+
+# The head of a claim whose work reached trunk without integrate, or nothing.
+# Landed means the todo is gone from trunk and the head is an ancestor of it;
+# either alone is not enough. A fresh claim's head is trunk itself, and a todo
+# deleted on purpose leaves a branch trunk never took.
+ai_harness_ig_landed_head() {
+	_lh_c=$(ai_harness_claim_file "$1")
+	[ -f "$_lh_c" ] || return 1
+	! git cat-file -e "$AI_HARNESS_TRUNK:$(ai_harness_kv_get "$_lh_c" todo)" 2>/dev/null || return 1
+	_lh_h=$(ai_harness_kv_get "$(ai_harness_ig_file submitted)/$1" head ||
+		ai_harness_kv_get "$(ai_harness_ig_file parked)/$1" head ||
+		git rev-parse -q --verify "refs/heads/$(ai_harness_kv_get "$_lh_c" branch)") || return 1
+	[ -n "$_lh_h" ] && git merge-base --is-ancestor "$_lh_h" "$AI_HARNESS_TRUNK" 2>/dev/null && printf '%s\n' "$_lh_h"
+}
+
+# Clear every landed claim as a merge would have: worktree, branch, claim,
+# submission, park, agent records. Unforced, so a dirty worktree is left with
+# a warning; abandon --force is the human's answer. Callers hold the
+# integrate lock: a merge's own cleanup must not race this.
+ai_harness_ig_landed_sweep() {
+	for _ls_s in $(ai_harness_claim_stems); do
+		_ls_h=$(ai_harness_ig_landed_head "$_ls_s") || continue
+		_ls_c=$(ai_harness_claim_file "$_ls_s")
+		_ls_wt=$(ai_harness_kv_get "$_ls_c" worktree)
+		if [ -d "$_ls_wt" ] && ! git worktree remove "$_ls_wt" 2>/dev/null; then
+			warn "integrate: $_ls_s landed on $AI_HARNESS_TRUNK but $_ls_wt has uncommitted work — inspect it, then aih abandon $_ls_s --force"
+			continue
+		fi
+		git branch -d "$(ai_harness_kv_get "$_ls_c" branch)" >/dev/null 2>&1 || :
+		rm -f "$_ls_c" "$(ai_harness_ig_file submitted)/$_ls_s" "$(ai_harness_ig_file submitted)/$_ls_s.body" "$(ai_harness_ig_file parked)/$_ls_s"
+		ai_harness_agents_clear "$_ls_s"
+		ai_harness_event "$_ls_s" - landed "$(git rev-parse --short "$_ls_h") by hand"
+		log "integrate: $_ls_s landed on $AI_HARNESS_TRUNK by hand at $(git rev-parse --short "$_ls_h") — cleared"
+	done
+}
