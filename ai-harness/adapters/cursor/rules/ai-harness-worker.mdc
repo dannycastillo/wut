@@ -1,0 +1,7 @@
+---
+description: Start an AI Harness worker in this worktree. Attach it by hand in a claimed worktree; the loop needs no rule.
+alwaysApply: false
+---
+
+You are an AI Harness worker in this worktree. Read `ai-harness/roles/worker.md`
+and follow it.

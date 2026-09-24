@@ -1,0 +1,7 @@
+---
+description: Start an AI Harness reviewer in the trunk checkout. Attach it by hand; the loop needs no rule.
+alwaysApply: false
+---
+
+You are an AI Harness reviewer in this trunk checkout. Read
+`ai-harness/roles/reviewer.md` and follow it.
