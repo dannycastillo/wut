@@ -16,10 +16,8 @@ func order(results []Result) []string {
 	return out
 }
 
-// Snippets the user wrote outrank the shipped set outright — a direct match in
-// seed scores 1000 and a word match in the user's own file scores 505, and the
-// user's still comes first. That inversion is the requirement, not a scoring
-// bug: a snippet someone wrote down is the one they meant.
+// A user word match at 505 beats a seed direct match at 1000. That inversion is
+// the requirement: a snippet someone wrote down is the one they meant.
 func TestUserSnippetsOutrankSeed(t *testing.T) {
 	results := []Result{
 		res("docker ps", 1000, false),
@@ -33,8 +31,7 @@ func TestUserSnippetsOutrankSeed(t *testing.T) {
 	}
 }
 
-// Within one origin the picker runs highest score first. Score was written by
-// buildMatch and read by nothing at all before this.
+// Within one origin, highest score first.
 func TestHigherScoreWins(t *testing.T) {
 	results := []Result{
 		res("word match", 505, false),
@@ -52,11 +49,8 @@ func TestHigherScoreWins(t *testing.T) {
 	}
 }
 
-// Results reach the coordinator in goroutine-completion order, which is
-// nondeterministic, and sort.Slice is not stable — so equal scores have to
-// break on something that does not move between runs. Every permutation of the
-// same matches must rank to the identical list, or the same query shows a
-// different order each time it is run.
+// Results arrive in goroutine order and sort.Slice is not stable, so every
+// permutation of the same matches must rank to the identical list.
 func TestSameInputRanksIdentically(t *testing.T) {
 	base := []Result{
 		res("git status", 500, false),
@@ -66,8 +60,7 @@ func TestSameInputRanksIdentically(t *testing.T) {
 		res("git log", 500, true),
 	}
 
-	// Both user snippets first and alphabetical between themselves, then the
-	// seed snippets by score, alphabetical where the scores tie.
+	// User snippets first, then seed by score, alphabetical within each tie.
 	want := []string{"git add -A", "git log", "git commit", "git diff", "git status"}
 
 	for _, perm := range [][]int{

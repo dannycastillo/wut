@@ -1,3 +1,5 @@
+// Package cmd is the wut command line: it runs the search, shows the picker
+// and copies the chosen command to the clipboard.
 package cmd
 
 import (
@@ -13,11 +15,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ANSI 2 rather than a hex value: whatever green the user's theme defines, so
-// the mark reads against a background this command cannot see.
+// ANSI 2, not a hex value: the theme's own green reads on any background.
 var copiedMark = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("✔")
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "wut",
 	Short: "Search for command line snippets",
@@ -53,8 +53,7 @@ in shell environments.`,
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+// Execute runs the root command and exits 1 if it fails.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -63,8 +62,6 @@ func Execute() {
 	}
 }
 
-// run turns a query into the thing the user asked for: the search itself is
-// internal/search's job, everything below is this command's.
 func run(query search.Query) error {
 	results, warnings, err := search.Find(query)
 	if err != nil {
@@ -75,15 +72,13 @@ func run(query search.Query) error {
 		fmt.Fprintln(os.Stderr, "warning:", e) // some worked: degrade
 	}
 
-	// Finding nothing is a normal outcome of a search, not a failure: report it
-	// and exit 0. Going further would open a picker with no index to return.
+	// No results is a normal outcome, not a failure: report it and exit 0.
 	if len(results) == 0 {
 		fmt.Fprintf(os.Stderr, "No Results Found For: %s\n", query.Joined)
 		return nil
 	}
 
-	// Built from the ranked slice, and read back by index at the bottom of this
-	// function: the two slices have to stay in the same order.
+	// Read back by index below: choices and results must stay in the same order.
 	choices := make([]ui.Choice, len(results))
 	for i, r := range results {
 		choices[i] = ui.Choice{Title: r.Cmd, Desc: r.Desc}
@@ -105,9 +100,8 @@ func run(query search.Query) error {
 		return fmt.Errorf("clipboard writeall: %w", err)
 	}
 
-	// No leading newline: the erase leaves the cursor on the frame's blank first
-	// row. Through colorprofile so the escape is stripped when stdout is not a
-	// terminal, and NO_COLOR is honoured.
+	// No leading newline: the picker's erase leaves the cursor on the frame's
+	// blank first row. colorprofile strips the colour when stdout is not a tty.
 	fmt.Fprintf(colorprofile.NewWriter(os.Stdout, os.Environ()),
 		"%s Copied: %s\n", copiedMark, selected.Cmd)
 

@@ -23,7 +23,6 @@ type Query struct {
 
 // NewQuery normalises raw command line arguments into a query.
 func NewQuery(args []string) Query {
-	// 'args' captures all arbitrary positional arguments
 	for i := range args {
 		args[i] = strings.ToLower(args[i])
 	}
@@ -34,11 +33,8 @@ func NewQuery(args []string) Query {
 	}
 }
 
-// Find returns every match for query, ranked best first.
-//
-// Files that could not be read come back as warnings: a file it could not open
-// is a fact, and whether that fact deserves a line on stderr belongs to the
-// caller. An error means nothing could be read at all.
+// Find returns every match for query, ranked best first. Files it could not
+// read come back as warnings; err is set only when nothing could be read.
 func Find(query Query) (results []Result, warnings []error, err error) {
 	files, err := listFiles()
 	if err != nil {
@@ -61,7 +57,6 @@ func Find(query Query) (results []Result, warnings []error, err error) {
 		}()
 	}
 
-	// 3. Close the channel once all children are completely done
 	go func() {
 		wg.Wait()
 		close(resultsChan)
@@ -84,6 +79,5 @@ func Find(query Query) (results []Result, warnings []error, err error) {
 
 	rank(finalResults)
 
-	// Some files worked, so any errors are the caller's to report or ignore.
-	return finalResults, scanErrs, nil
+	return finalResults, scanErrs, nil // some worked: degrade
 }

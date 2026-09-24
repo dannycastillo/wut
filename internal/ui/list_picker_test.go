@@ -271,11 +271,8 @@ func TestBarSpansTheWidestRowNotItsOwn(t *testing.T) {
 	}
 }
 
-// The picker draws relative to its own first row and erases only downward, so
-// once the terminal moves rows it has already emitted those rows are beyond
-// reach. Which resizes do that is not knowable from here — it depends on the
-// rest of the screen and on how the terminal reflows — so every real change
-// closes it.
+// Which resizes move rows the picker has already emitted depends on the rest of
+// the screen and the terminal's reflow, so every real change closes it.
 func TestAnyResizeClosesThePicker(t *testing.T) {
 	m := size(t, newModel(sample(30)), 80, 24)
 
@@ -385,10 +382,8 @@ func TestAbortKeysLeaveNoChoice(t *testing.T) {
 		if m.choice != -1 {
 			t.Errorf("key %q: choice = %d, want -1", k.String(), m.choice)
 		}
-		// The frame must keep a real height through quit. An empty final view
-		// zeroes the renderer's cell buffer, and its shutdown then runs
-		// MoveTo(0, -1), leaving the cursor terminal-dependent — which cost a
-		// row of the user's scrollback.
+		// An empty final view zeroes the renderer's cell buffer, and its shutdown
+		// then runs MoveTo(0, -1), which cost a row of the user's scrollback.
 		if got := lipgloss.Height(m.View().Content); got < 2 {
 			t.Errorf("key %q: frame collapsed to %d rows on quit; shutdown needs a real height", k.String(), got)
 		}
