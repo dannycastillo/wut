@@ -27,8 +27,11 @@ const (
 	reservedRows  = 2  // the invoking command line, and the line cmd prints on exit
 	minVisible    = 3  // keep a decoration only while this many choices fit under it
 
-	// Measured, not derived: bubbles/list floors at 5 rows with both
-	// decorations, 3 with pagination only, 1 with neither.
+	// Measured, not derived. helpRows gates only the show/hide decision in
+	// resize — the actual row cost of a shown help block is read back from
+	// what it rendered to, in helpHeight, since full help costs more than
+	// short. paginationRows is bubbles/list's own floor with pagination shown
+	// and nothing else.
 	helpRows       = 4
 	paginationRows = 2
 )
@@ -73,6 +76,12 @@ func newModel(choices []Choice) model {
 		key.WithKeys("q", "esc"),
 		key.WithHelp("q/esc", "quit"),
 	)
+
+	// list.Model.View hardcodes help below the content with no hook to move it.
+	// frame() draws it above instead, so the list itself never shows it — the
+	// bindings (ShortHelp, FullHelp, AdditionalShortHelpKeys, the "?" toggle)
+	// stay untouched; only where the rendered block ends up changes.
+	l.SetShowHelp(false)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "copy")),
@@ -159,10 +168,14 @@ var (
 	// Reverse borrows the terminal's own palette, so the hovered row is legible in any theme.
 	hoveredStyle = lipgloss.NewStyle().PaddingLeft(rowPad).Reverse(true)
 
-	// Written out rather than taken from list.DefaultStyles: helpRows counts the
-	// top padding row, which a library default could stop providing.
+	// Written out rather than taken from list.DefaultStyles: paginationRows
+	// counts this exactly, which a library default isn't obliged to keep.
 	paginationStyle = lipgloss.NewStyle().PaddingLeft(rowPad)
-	helpStyle       = lipgloss.NewStyle().Padding(1, 0, 0, rowPad)
+
+	// Padded below rather than above: help now sits above the results, so the
+	// blank row that separates it from them belongs underneath. Written out
+	// for the same reason as paginationStyle: helpHeight measures this padding.
+	helpStyle = lipgloss.NewStyle().Padding(0, 0, 1, rowPad)
 )
 
 type choiceDelegate struct {
@@ -210,24 +223,33 @@ type model struct {
 	list          list.Model
 	choice        int
 	width, height int
-	naturalTitle  int // widest Choice.Title across all choices, in display cells
-	naturalDesc   int // widest Choice.Desc, same units
+	showHelp      bool // list itself never draws help; frame() does, above the results
+	naturalTitle  int  // widest Choice.Title across all choices, in display cells
+	naturalDesc   int  // widest Choice.Desc, same units
 }
 
 // resize sizes the list from the terminal, never the other way around.
 func (m *model) resize() {
 	m.list.SetWidth(m.width)
 
-	// Measured rather than assumed, so restyling frame() cannot silently break
-	// the arithmetic below.
-	chrome := lipgloss.Height(m.frame()) - lipgloss.Height(m.list.View())
-	avail := m.height - chrome - reservedRows
+	pad := rowStyle.GetHorizontalPadding()
 
-	// Shed chrome rather than overflow.
-	m.list.SetShowHelp(avail-helpRows >= minVisible)
+	// JoinVertical pads every section to the widest, so one over-wide line wraps
+	// every row. bubbles sizes the help unaware of HelpStyle's padding and keeps
+	// a binding even when its ellipsis will not fit; MaxWidth is the backstop.
+	// Set before layout() below, which measures the help block at this width.
+	m.list.Styles.HelpStyle = helpStyle.MaxWidth(m.width)
+	m.list.Styles.PaginationStyle = paginationStyle.MaxWidth(m.width)
+
+	avail := m.avail()
+
+	// Shed chrome rather than overflow. helpRows is short help's measured cost;
+	// it only has to gate this decision, taken once here with Help.ShowAll at
+	// its zero value, never at the "?" keypress that can make help taller.
+	m.showHelp = avail-helpRows >= minVisible
 	m.list.SetShowPagination(avail-paginationRows >= minVisible)
 
-	m.list.SetHeight(max(min(avail, maxListHeight), 1))
+	m.layout(avail)
 
 	titleWidth := 0
 	if m.width > 0 {
@@ -236,7 +258,6 @@ func (m *model) resize() {
 
 	// Every title renders at exactly titleWidth, so the widest row is that
 	// column plus the widest description — no need to render them to find out.
-	pad := rowStyle.GetHorizontalPadding()
 	hovered := hoveredStyle
 	if content := min(titleWidth+descGap+m.naturalDesc, m.width-pad); content > 0 {
 		hovered = hovered.Width(pad + content)
@@ -246,13 +267,47 @@ func (m *model) resize() {
 		hovered:    hovered,
 		titleWidth: titleWidth,
 	})
+}
 
-	// JoinVertical pads every section to the widest, so one over-wide line wraps
-	// every row. bubbles sizes the help unaware of HelpStyle's padding and keeps
-	// a binding even when its ellipsis will not fit; MaxWidth is the backstop.
+// avail is the rows left for the list once the leading blank row and the
+// caller's own chrome (reservedRows) are spoken for. Measured with help
+// forced off rather than assumed, so restyling frame() cannot silently break
+// this arithmetic, and so the decision resize() makes from it cannot feed
+// back into the budget that decides it.
+func (m model) avail() int {
+	m.showHelp = false
+	chrome := lipgloss.Height(m.frame()) - lipgloss.Height(m.list.View())
+	return m.height - chrome - reservedRows
+}
+
+// layout gives the list its share of avail, net of whatever help is actually
+// costing right now. It is called from resize, and again whenever "?"
+// changes Help.ShowAll: full help is taller than short, and nothing else
+// re-lays out the list mid-session (ADR-06 closes the picker on a real
+// resize instead).
+func (m *model) layout(avail int) {
+	pad := rowStyle.GetHorizontalPadding()
 	m.list.Help.SetWidth(max(m.width-pad, 0))
-	m.list.Styles.HelpStyle = helpStyle.MaxWidth(m.width)
-	m.list.Styles.PaginationStyle = paginationStyle.MaxWidth(m.width)
+
+	listBudget := avail
+	if m.showHelp {
+		listBudget -= m.helpHeight()
+	}
+	m.list.SetHeight(max(min(listBudget, maxListHeight), 1))
+
+	// SetHeight resets Help's width to the full list width, via bubbles' own
+	// SetSize; reassert the pad-adjusted width it does not know about.
+	m.list.Help.SetWidth(max(m.width-pad, 0))
+}
+
+// helpHeight is the actual rendered cost of the help block frame() draws,
+// including the newline that joins it to the list below — not the helpRows
+// constant, which only pins the show/hide decision at short help's size.
+func (m model) helpHeight() int {
+	if !m.showHelp {
+		return 0
+	}
+	return lipgloss.Height(m.list.Styles.HelpStyle.Render(m.list.Help.View(m.list))) + 1
 }
 
 func (m model) Init() tea.Cmd {
@@ -292,15 +347,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	prevShowAll := m.list.Help.ShowAll
+
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
+
+	// "?" toggled full help through the list's own keymap: re-lay-out, since
+	// full help costs more rows than the short help resize() sized around.
+	if m.list.Help.ShowAll != prevShowAll {
+		m.layout(m.avail())
+	}
 	return m, cmd
 }
 
 // frame is the exact string the picker paints; its line count is what Pick's
-// erase counts back from.
+// erase counts back from. The leading blank row comes first, then help, then
+// the list itself — cmd/root.go prints the copied-command line onto the blank
+// row, so nothing may be drawn above it.
 func (m model) frame() string {
-	return "\n" + m.list.View()
+	if !m.showHelp {
+		return "\n" + m.list.View()
+	}
+	// HelpStyle's own padding renders its blank separator row without a
+	// trailing newline, so the "+" here needs one explicitly or that row
+	// fuses onto the list's first line instead of standing on its own.
+	help := m.list.Styles.HelpStyle.Render(m.list.Help.View(m.list))
+	return "\n" + help + "\n" + m.list.View()
 }
 
 // View always paints a frame with real height, including after tea.Quit. An
