@@ -31,9 +31,12 @@ The cap exists to bound cost and load. A parked claim runs nothing.
   `ai_harness_agent_alive` in `ai-harness/lib/agents.sh` give the test.
 - `status` prints `claims (n of MAX)`; keep that as the slot count and add
   how many claims hold paths only, so the two numbers stop looking like one.
-- The scratch loop suite (`/tmp/hx.*` fixtures, a stub agent, `prot` mode
-  parks on protected-path) reproduces this with `AI_HARNESS_MAX_WORKERS=1`
-  and two todos: today the second is never dispatched.
+- A worker's exit is known only after `ai_harness_agents_reap` writes the
+  `exit` key into its record. `run` reaps every tick and `status` reaps
+  first, but `claim` does not, so reap before counting or a hand claim
+  mid-run counts a worker that is already gone.
+- Reproduce with a stub `AI_HARNESS_AGENT_CMD` that parks, the cap at 1 and
+  two disjoint todos: today the second is never dispatched.
 
 ## Done when
 - [ ] With the cap at 1 and one claim parked, `aih run` dispatches the next

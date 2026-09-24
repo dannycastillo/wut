@@ -2,7 +2,7 @@
 
 - **Priority:** medium
 - **Branch:** chore/add-the-install-script
-- **Touches:** ai-harness/*, .ai-harness.conf, AGENTS.md, .claude/*
+- **Touches:** NEW ai-harness/install.sh, NEW ai-harness/templates/*, ai-harness/README.md
 - **Blocked by:** —
 
 ## Goal
@@ -24,19 +24,36 @@ function, trailer and marker follows the project: `ai-harness/`,
 The launcher is the two-line `~/.local/bin/aih` that `doctor` prints when
 `aih` is not on PATH.
 
-### Adapters are optional
+### Adapters
 
 The loop starts agents through `AI_HARNESS_AGENT_CMD` and needs no adapter;
-adapters are pointers for a human starting a role in an editor. Copy
-`ai-harness/adapters/` when it exists and say nothing when it does not, so
-this ships whether or not chore-add-the-platform-adapters ever lands.
+adapters are pointers for a human starting a role in an editor. They ship
+inside `ai-harness/adapters/`, so copying the tree carries them. Installing
+one is a copy into the platform's dot directory (`ai-harness/adapters/README.md`
+has the table). Copy into a dot directory only when it already exists in the
+target, and never create one: its presence is the only evidence the platform
+is in use.
+
+### Templates
+
+Nothing in the tree yet holds the portable text. Add `ai-harness/templates/`:
+
+- `AGENTS.md`: the portable sections in full, for a repo that has none.
+- `agents-block.md`: the marker-delimited block alone, for a repo that has
+  its own AGENTS.md.
+- `ai-harness.conf`: the config skeleton, gate functions filled in per
+  detected stack.
+
+`doctor` checks the block's marker as `cksum` over the lines between the
+markers, so install writes the marker the same way or every install fails
+`doctor` on the spot.
 
 ### install.sh
 
 Copies the `ai-harness/` tree, detects the gate and writes the config, inserts the
 marker-delimited AGENTS.md block (or creates AGENTS.md from the template),
-installs the launcher if needed, and copies the adapters if any. It installs no
-git hooks (adr-2026-09-23-the-harness-installs-no-git-hooks).
+installs the launcher if needed, and copies the adapters whose dot directory
+exists. It installs no git hooks (adr-2026-09-23-the-harness-installs-no-git-hooks).
 
 Detection, in order of preference: `go.mod`; `package.json` scripts that
 actually exist; `Cargo.toml`; `pyproject.toml` tools that are actually declared;
@@ -46,6 +63,12 @@ fails loudly.
 Always print the generated config and require `--yes` or an interactive
 confirm. **Never guess a gate silently** — a wrong gate is worse than no gate,
 because it discredits every result the harness reports afterwards.
+
+This repo's config also declares `shellcheck` and `shellsize` over the
+harness's own shell. Decide whether every target gets them: the honest rule
+from the config's own comment is to declare `shellcheck` only when the tool
+is on PATH at install time, and `shellsize` always, since it needs only `wc`
+and `awk`.
 
 `--upgrade` replaces the tree, refreshes the AGENTS.md block only if its
 checksum still matches, and never touches the config.
@@ -75,4 +98,5 @@ that must come back unharmed.
       of overwriting it
 - [ ] `doctor` passes in the installed repo
 - [ ] `sh -n` passes on every shell file
-- [ ] `go build ./...` and `go vet ./...` pass
+- [ ] `ai-harness/README.md` no longer lists install.sh or the adapters as open
+- [ ] `aih gate --full` green
