@@ -174,17 +174,97 @@ ai_harness_run_idle() {
 	[ -f "$(ai_harness_state_dir)/PAUSED" ] || ! ai_harness_run_next >/dev/null || return 1
 }
 
-# What happened since $1 (an ISO time), and what in the set is still held.
-ai_harness_run_report() {
-	printf 'run: since %s\n' "$1"
-	awk -v t="$1" '$1 >= t && ($4 == "merged" || $4 == "parked" || $4 == "lost" || ($4 == "exited" && $5 != "0")) {
-		d = ""; for (i = 5; i <= NF; i++) d = d (i > 5 ? " " : "") $i
-		printf "  %-10s %-34s %s\n", $4, $2, d }' "$(ai_harness_state_dir)/events" 2>/dev/null || :
-	_rr_plan=$(ai_harness_run_plan)
-	for _rr_s in $(ai_harness_run_set); do
-		[ -f "$(ai_harness_todo_file "$_rr_s")" ] || continue
-		[ -f "$(ai_harness_claim_file "$_rr_s")" ] && continue
-		_rr_why=$(printf '%s\n' "$_rr_plan" | awk -F'\t' -v s="$_rr_s" '$1 == "hold" && $2 == s { print $3 }')
-		[ -z "$_rr_why" ] || printf '  %-10s %-34s %s\n' held "$_rr_s" "$_rr_why"
+# HH:MM:SS of an ISO time.
+ai_harness_run_clock() {
+	_rc_t=${1#*T}
+	printf '%s\n' "${_rc_t%Z}"
+}
+
+# What became of one stem in the set, as "<state> <detail>", given the plan.
+ai_harness_run_state() {
+	_rs_c=$(ai_harness_claim_file "$1")
+	_rs_w=$(ai_harness_agent_file "$1" worker)
+	if [ -f "$_rs_c" ]; then
+		if [ -f "$(ai_harness_ig_file parked)/$1" ]; then
+			printf 'parked %s\n' "$(ai_harness_kv_get "$(ai_harness_ig_file parked)/$1" code)"
+		elif [ -f "$(ai_harness_ig_file submitted)/$1" ]; then
+			printf 'submitted\n'
+		elif [ ! -f "$_rs_w" ]; then
+			printf 'claimed\n'
+		elif ai_harness_agent_alive "$_rs_w"; then
+			printf 'running\n'
+		else
+			printf 'exited %s\n' "$(ai_harness_kv_get "$_rs_w" exit)"
+		fi
+	elif [ -f "$(ai_harness_todo_file "$1")" ]; then
+		_rs_why=$(printf '%s\n' "$2" | awk -F'\t' -v s="$1" '$1 == "hold" && $2 == s { print $3 }')
+		if [ -n "$_rs_why" ]; then printf 'held %s\n' "$_rs_why"; else printf 'queued\n'; fi
+	else
+		_rs_e=$(awk -v s="$1" '$2 == s && ($4 == "merged" || $4 == "landed") { e = $4 " " $5 } END { if (e) print e }' \
+			"$(ai_harness_state_dir)/events" 2>/dev/null)
+		printf '%s\n' "${_rs_e:-gone}"
+	fi
+}
+
+# The last run's set, one line per todo with its state, under the loop's start
+# and end. Nothing when no set is on disk. The loop's final report is this
+# same function, so status and the report cannot disagree.
+ai_harness_run_status() {
+	[ -f "$(ai_harness_run_file set)" ] || return 0
+	_ru_ev="$(ai_harness_state_dir)/events"
+	_ru_last=$(awk '$2 == "@run" && $4 == "started" { n = NR; t = $1 } END { if (n) print n, t }' "$_ru_ev" 2>/dev/null)
+	_ru_n=${_ru_last%% *}
+	_ru_end=$(awk -v n="${_ru_n:-0}" 'NR > n && $2 == "@run" && ($4 == "stopped" || $4 == "idle") {
+		d = ""; for (i = 5; i <= NF; i++) d = d (i > 5 ? " " : "") $i; e = $4 " " $1 " " d }
+		END { if (e) print e }' "$_ru_ev" 2>/dev/null)
+	_ru_plan=$(ai_harness_run_plan)
+	_ru_set=$(ai_harness_run_set)
+	if [ -n "$_ru_set" ]; then
+		_ru_count=$(printf '%s\n' "$_ru_set" | grep -c .)
+	else
+		_ru_count='every todo'
+		_ru_set=$({
+			printf '%s\n' "$_ru_plan" | cut -f2
+			awk -v n="${_ru_n:-0}" 'NR > n && ($4 == "merged" || $4 == "landed") { print $2 }' "$_ru_ev" 2>/dev/null
+		} | awk 'NF && !seen[$0]++')
+	fi
+
+	printf 'run set (%s)' "$_ru_count"
+	[ -z "$_ru_last" ] || printf ', started %s' "$(ai_harness_run_clock "${_ru_last#* }")"
+	if [ -n "$_ru_end" ]; then
+		_ru_kind=${_ru_end%% *}
+		_ru_rest=${_ru_end#* }
+		_ru_when=${_ru_rest%% *}
+		_ru_why=${_ru_rest#"$_ru_when"}
+		_ru_why=${_ru_why# }
+		# The loop's own exit codes, read back from the only place it recorded
+		# them (verbs/run.sh). A stop by aih stop killed it, so it had none.
+		case $_ru_kind:$_ru_why in
+		idle:*) _ru_rc=" rc $EX_OK:" ;;
+		stopped:'paused and drained') _ru_rc=" rc $EX_PAUSED:" ;;
+		stopped:'by aih stop') _ru_rc= ;;
+		*) _ru_rc=" rc $EX_FAIL:" ;;
+		esac
+		printf ', %s %s%s %s' "$_ru_kind" "$(ai_harness_run_clock "$_ru_when")" "$_ru_rc" "$_ru_why"
+	elif ai_harness_lock_held run && [ "$(sed -n 's/^pid=//p' "$(ai_harness_lock_path run)/holder" 2>/dev/null)" != "$$" ]; then
+		printf ', running'
+	elif [ -n "$_ru_last" ]; then
+		printf ', no stop recorded'
+	fi
+	printf '\n'
+	for _ru_s in $_ru_set; do
+		_ru_st=$(ai_harness_run_state "$_ru_s" "$_ru_plan")
+		_ru_w=${_ru_st%% *}
+		_ru_d=${_ru_st#"$_ru_w"}
+		_ru_d=${_ru_d# }
+		if [ -n "$_ru_d" ]; then
+			printf '  %-34s %-10s %s\n' "$_ru_s" "$_ru_w" "$_ru_d"
+		else
+			printf '  %-34s %s\n' "$_ru_s" "$_ru_w"
+		fi
 	done
 }
+
+# The loop's final report. $1, the loop's start time, is what the events
+# already hold; the header names it from there.
+ai_harness_run_report() { ai_harness_run_status; }
