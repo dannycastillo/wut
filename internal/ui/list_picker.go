@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -65,6 +66,16 @@ func newModel(choices []Choice) model {
 	}
 
 	l := list.New(items, choiceDelegate{}, 0, 0) // real size arrives via WindowSizeMsg
+
+	// list.New hardcodes list.DefaultStyles(true) for the pagination dots and
+	// help.New hardcodes help.DefaultDarkStyles() for the help text — both
+	// marked XXX upstream. Neither is corrected until a real
+	// tea.BackgroundColorMsg names the terminal's background (applyTheme);
+	// until then, or if one never arrives, these stay at the paginator's own
+	// colorless defaults rather than assuming dark.
+	l.Paginator.ActiveDot = "•"
+	l.Paginator.InactiveDot = "○"
+	l.Help.Styles = help.Styles{}
 
 	// Not redundant with assigning no Title: list.New defaults Title to "List".
 	l.SetShowTitle(false)
@@ -311,11 +322,26 @@ func (m model) helpHeight() int {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return tea.RequestBackgroundColor
+}
+
+// applyTheme colors the pagination dots and help text once a real
+// tea.BackgroundColorMsg has named the terminal's background. list.New and
+// help.New assume dark; this is what makes that assumption honest instead of
+// silently deleted.
+func (m *model) applyTheme(isDark bool) {
+	dots := list.DefaultStyles(isDark)
+	m.list.Paginator.ActiveDot = dots.ActivePaginationDot.String()
+	m.list.Paginator.InactiveDot = dots.InactivePaginationDot.String()
+	m.list.Help.Styles = help.DefaultStyles(isDark)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.BackgroundColorMsg:
+		m.applyTheme(msg.IsDark())
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		switch {
 		case m.width == 0 && m.height == 0:

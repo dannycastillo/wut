@@ -3,6 +3,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"image/color"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -236,6 +237,56 @@ func TestHelpRendersAboveResultsPaginationBelow(t *testing.T) {
 	}
 }
 
+// Until the terminal actually names its background, the pagination dots and
+// help text carry no color at all: list.New's and help.New's own hardcoded
+// dark defaults never reach the frame, whether or not a tea.BackgroundColorMsg
+// ever arrives.
+func TestChromeUnstyledUntilBackgroundKnown(t *testing.T) {
+	m := size(t, newModel(sample(30)), 80, 24)
+	frame := m.frame()
+
+	if !m.showHelp || !m.list.ShowPagination() {
+		t.Fatalf("fixture must show both help and pagination at 80x24:\n%s", frame)
+	}
+	if !strings.Contains(ansi.Strip(frame), "•") {
+		t.Fatalf("fixture must show pagination dots:\n%s", frame)
+	}
+	if strings.Contains(frame, "\x1b[38") {
+		t.Errorf("chrome carries a foreground color before any background answer:\n%s", frame)
+	}
+}
+
+// A real tea.BackgroundColorMsg colors the pagination dots and help text, and
+// picks different colors for a dark background than a light one — the branch
+// applyTheme takes on IsDark() is not a formality.
+func TestBackgroundColorMsgColorsTheChrome(t *testing.T) {
+	frames := map[string]string{}
+	for _, tc := range []struct {
+		name  string
+		color color.Color
+	}{
+		{"dark", color.Black},
+		{"light", color.White},
+	} {
+		m := size(t, newModel(sample(30)), 80, 24)
+
+		next, cmd := m.Update(tea.BackgroundColorMsg{Color: tc.color})
+		if cmd != nil {
+			t.Errorf("%s: background answer returned %T, want no command", tc.name, cmd())
+		}
+
+		frame := next.(model).frame()
+		if !strings.Contains(frame, "\x1b[38") {
+			t.Errorf("%s: chrome still carries no color after a background answer:\n%s", tc.name, frame)
+		}
+		frames[tc.name] = frame
+	}
+
+	if frames["dark"] == frames["light"] {
+		t.Error("dark and light backgrounds produced the same frame; applyTheme's isDark branch did nothing")
+	}
+}
+
 // Without SetShowTitle(false) the header comes back reading "List", which is
 // bubbles' default rather than anything this package set.
 func TestFrameOpensOnABlankRow(t *testing.T) {
@@ -369,6 +420,17 @@ func TestResendingTheSameSizeIsNotAResize(t *testing.T) {
 	}
 	if !strings.Contains(next.(model).frame(), "tofu init") {
 		t.Error("the same size tore the list down")
+	}
+}
+
+// applyTheme only ever runs from a real answer, so the picker has to ask.
+func TestInitRequestsBackgroundColor(t *testing.T) {
+	cmd := newModel(sample(5)).Init()
+	if cmd == nil {
+		t.Fatal("Init returned no command, want a request for the terminal's background color")
+	}
+	if cmd() == nil {
+		t.Error("the background color request command produced a nil message")
 	}
 }
 
