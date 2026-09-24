@@ -70,7 +70,7 @@ A human owns everything the two roles stop on: parks, stale locks, pauses.
 |            | `abandon <todo>`            | gives the claim back; keeps a dirty tree unless `--force`     |
 | reviewer   | `check`                     | read-only diff check: paths against `Touches`, hard stops     |
 |            | `integrate`                 | baseline gate, packet, merge, post-merge gate; or park        |
-| human      | `status`                    | claims and locks in flight                                    |
+| human      | `status`                    | one table, a row per todo, why each is where it is            |
 |            | `doctor [--repair]`         | asserts the setup; `--repair` rebuilds claims from git        |
 |            | `unlock <name> --force`     | releases a lock whose holder is dead                          |
 |            | `plan`, `dispatch`          | says what can run and why; claims one and starts an agent     |
@@ -94,7 +94,7 @@ nothing is runnable and nothing is in flight, or on a stop a human owns.
 ```sh
 aih run fix-a fix-b --detach           # remembers the set; a bare run reuses it
 aih run --all --detach                 # every todo
-aih status                             # claims, agents, pending, parks
+aih status                             # one table: what each todo is doing, and why
 aih log                                # what happened
 aih pause "trunk needs a look"         # no new claims; queued work still merges
 aih stop                               # kill the loop and every agent
@@ -114,7 +114,7 @@ By hand, one worker at a time:
 ```sh
 aih plan                               # what can run now, and why the rest cannot
 eval "$(aih dispatch worker)"          # claims the top runnable todo, starts the agent
-aih status                             # what is claimed, by whom, touching what
+aih status                             # every todo's row: runnable, held, claimed, parked
 ```
 
 `dispatch` starts `$AI_HARNESS_AGENT_CMD` with a one-line boot prompt that ends
@@ -125,7 +125,7 @@ process group, so it outlives the shell that started it, and records it:
 ```sh
 aih dispatch worker --detach           # prints the pid
 aih dispatch reviewer --detach         # after an integrate --next that exited 10
-aih status                             # agents, alive or exited, and how long
+aih status                             # the row for that todo: role, pid, and how long
 aih log fix-something                  # everything that happened to one todo
 ```
 
