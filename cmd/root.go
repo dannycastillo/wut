@@ -116,8 +116,10 @@ func run(query search.Query) error {
 
 	// No leading newline: the picker's erase leaves the cursor on the frame's
 	// blank first row. colorprofile strips the colour when stdout is not a tty.
-	fmt.Fprintf(colorprofile.NewWriter(os.Stdout, os.Environ()),
-		"%s Copied: %s\n", copiedMark, selected.Cmd)
+	if _, err := fmt.Fprintf(colorprofile.NewWriter(os.Stdout, os.Environ()),
+		"%s Copied: %s\n", copiedMark, selected.Cmd); err != nil {
+		return fmt.Errorf("write copied message: %w", err)
+	}
 
 	return nil
 }
