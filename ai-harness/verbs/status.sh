@@ -60,3 +60,5 @@ for _l in "$(ai_harness_state_dir)"/lock/*; do
 done
 
 [ "$_any" = yes ] || log "nothing in flight"
+
+ai_harness_run_status
