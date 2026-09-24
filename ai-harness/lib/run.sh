@@ -7,9 +7,12 @@ ai_harness_run_file() { printf '%s/run/%s\n' "$(ai_harness_state_dir)" "$1"; }
 # The requested stems, one per line; an empty file means every todo. It is the
 # one thing a restart would otherwise lose, so it lives on disk.
 ai_harness_run_set() { cat "$(ai_harness_run_file set)" 2>/dev/null || :; }
-ai_harness_run_in_set() {
-	_rs_set=$(ai_harness_run_set)
-	[ -z "$_rs_set" ] || printf '%s\n' "$_rs_set" | grep -qxF -- "$1"
+
+# The plan for the set alone: a todo nobody asked for must not hold one in it.
+ai_harness_run_plan() {
+	_rp_set=$(ai_harness_run_set)
+	# shellcheck disable=SC2086  # a list of stems
+	ai_harness_plan $_rp_set
 }
 
 # Every process under $1, deepest last, from one ps snapshot. Taken before any
@@ -56,8 +59,7 @@ ai_harness_run_timeouts() {
 
 # The next runnable stem in the set that has never been dispatched, or nothing.
 ai_harness_run_next() {
-	for _rn_s in $(ai_harness_plan | awk -F'\t' '$1 == "run" { print $2 }'); do
-		ai_harness_run_in_set "$_rn_s" || continue
+	for _rn_s in $(ai_harness_run_plan | awk -F'\t' '$1 == "run" { print $2 }'); do
 		[ ! -f "$(ai_harness_agent_file "$_rn_s" worker)" ] || continue
 		printf '%s\n' "$_rn_s"
 		return 0
@@ -178,10 +180,11 @@ ai_harness_run_report() {
 	awk -v t="$1" '$1 >= t && ($4 == "merged" || $4 == "parked" || $4 == "lost" || ($4 == "exited" && $5 != "0")) {
 		d = ""; for (i = 5; i <= NF; i++) d = d (i > 5 ? " " : "") $i
 		printf "  %-10s %-34s %s\n", $4, $2, d }' "$(ai_harness_state_dir)/events" 2>/dev/null || :
+	_rr_plan=$(ai_harness_run_plan)
 	for _rr_s in $(ai_harness_run_set); do
 		[ -f "$(ai_harness_todo_file "$_rr_s")" ] || continue
 		[ -f "$(ai_harness_claim_file "$_rr_s")" ] && continue
-		_rr_why=$(ai_harness_plan | awk -F'\t' -v s="$_rr_s" '$1 == "hold" && $2 == s { print $3 }')
+		_rr_why=$(printf '%s\n' "$_rr_plan" | awk -F'\t' -v s="$_rr_s" '$1 == "hold" && $2 == s { print $3 }')
 		[ -z "$_rr_why" ] || printf '  %-10s %-34s %s\n' held "$_rr_s" "$_rr_why"
 	done
 }
