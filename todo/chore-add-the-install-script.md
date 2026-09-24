@@ -1,6 +1,6 @@
 # chore: add the install script
 
-- **Priority:** medium
+- **Priority:** low
 - **Branch:** chore/add-the-install-script
 - **Touches:** NEW ai-harness/install.sh, NEW ai-harness/templates/*, ai-harness/README.md
 - **Blocked by:** —
@@ -14,6 +14,11 @@ parallelism on this backlog is six and realistically three, and the backlog
 empties in a few sessions — the harness does not pay for itself here alone.
 
 ## Notes
+
+A first cut exists on the branch `chore/add-the-install-script` (8412c27, on
+origin; PR #34 closed unmerged): the script, the three templates and the
+README text. Start from it rather than from nothing, but the harness has to
+settle before an installer is worth finishing.
 
 ### The names
 
