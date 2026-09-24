@@ -36,7 +36,9 @@ func withStderr(t *testing.T, f func()) string {
 	os.Stderr = w
 	f()
 	os.Stderr = orig
-	w.Close()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {

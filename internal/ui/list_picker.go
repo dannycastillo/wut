@@ -216,7 +216,7 @@ func (d choiceDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 		row = ansi.Truncate(row, avail, "…")
 	}
 
-	fmt.Fprint(w, style.Render(row))
+	_, _ = fmt.Fprint(w, style.Render(row))
 }
 
 type model struct {

@@ -24,7 +24,7 @@ func scanFile(src snippetSource, query Query, ch chan<- Result) error {
 		return fmt.Errorf("%s: %w", src.label, err)
 	}
 
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 
