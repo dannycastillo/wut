@@ -41,6 +41,12 @@ func Find(query Query) (results []Result, warnings []error, err error) {
 		return nil, nil, err
 	}
 
+	return findIn(files, query)
+}
+
+// findIn is Find's fan-out, split out so it can be driven by sources a test
+// controls rather than listFiles' real seed and ~/.wut.
+func findIn(files []snippetSource, query Query) (results []Result, warnings []error, err error) {
 	var wg sync.WaitGroup
 
 	wg.Add(len(files))
