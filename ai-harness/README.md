@@ -17,10 +17,36 @@ Partly built. `aih help` lists what your copy has.
 - `AGENTS.md` names the two roles and no language. Trunk is written only by
   `integrate`, as a rule rather than a mechanism: a merge made by hand shows
   in `aih log` as `by hand`, since it carries no trailers.
-- Not yet lifted into another repo: `install.sh` is an open todo. The
-  adapters are in `ai-harness/adapters/`.
+- `install.sh` lifts the tree into another repo, and `ai-harness/adapters/`
+  holds the editor pointers it copies along. Neither has been used on a repo
+  other than scratch ones yet.
 
 ## Setup
+
+From any checkout of the harness, into the root of the repo that gets it:
+
+```sh
+path/to/ai-harness/install.sh [--yes] [<repo>]
+path/to/ai-harness/install.sh --upgrade [<repo>]
+```
+
+A fresh install copies the tree, detects the gate from the first of `go.mod`,
+`package.json` scripts, `Cargo.toml`, `pyproject.toml` `[tool.*]` tables or
+`Makefile` targets it finds, prints the `.ai-harness.conf` it would write, and
+stops for a `y` unless given `--yes`. A wrong gate is worse than no gate, so it
+never guesses silently: a repo it cannot classify gets a gate named
+`unconfigured` with no function behind it, which `doctor` refuses until
+someone writes the real one. `shellsize` is always declared over the harness's
+own shell; `shellcheck` only when the tool is on PATH at install time.
+
+It inserts the marker-delimited block into `AGENTS.md`, or creates the file
+from `templates/AGENTS.md` when there is none, copies each adapter whose dot
+directory already exists, and writes the launcher below when `aih` is not on
+PATH. It installs no git hooks
+(adr-2026-09-23-the-harness-installs-no-git-hooks).
+
+`--upgrade` replaces the tree, refreshes the block only while its checksum
+still matches, and never touches the config.
 
 Each worktree runs its own copy, so `aih` on PATH is a launcher that execs
 the current repo's copy, never a fixed path or a symlink:
