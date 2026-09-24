@@ -65,14 +65,19 @@ ai_harness_run_next() {
 	return 1
 }
 
+# Prints a stop reason and fails once a stem's dispatch has failed twice; the
+# error is on stderr both times. Counts live under run/ and a new loop resets them.
 ai_harness_run_dispatch() {
 	[ ! -f "$(ai_harness_state_dir)/PAUSED" ] || return 0
 	while [ "$(ai_harness_claim_count)" -lt "$AI_HARNESS_MAX_WORKERS" ]; do
 		_rd_s=$(ai_harness_run_next) || return 0
-		"$AI_HARNESS_HOME/bin/aih" dispatch worker "$_rd_s" --agent "${AI_HARNESS_AGENT:-loop}" --detach >/dev/null || {
-			log "run: dispatch of $_rd_s failed; not retried this tick"
-			return 0
-		}
+		"$AI_HARNESS_HOME/bin/aih" dispatch worker "$_rd_s" --agent "${AI_HARNESS_AGENT:-loop}" --detach >/dev/null && continue
+		_rd_f=$(ai_harness_run_file "failed.$_rd_s")
+		_rd_n=$(($(cat "$_rd_f" 2>/dev/null || echo 0) + 1))
+		printf '%s\n' "$_rd_n" >"$_rd_f"
+		[ "$_rd_n" -lt 2 ] || { printf 'dispatch of %s failed twice; its error is above\n' "$_rd_s" && return 1; }
+		log "run: dispatch of $_rd_s failed; retried next tick"
+		return 0
 	done
 }
 
@@ -124,6 +129,27 @@ ai_harness_run_waiting() {
 		[ ! -f "$(ai_harness_ig_file submitted)/$_rw_s" ] || return 0
 	done
 	return 1
+}
+
+# Claims that will never merge on their own: a worker this harness dispatched
+# exited without submitting, or a park. Named again at idle, so that exit 0
+# cannot mean either.
+ai_harness_run_unfinished() {
+	_ru_out=
+	for _ru_s in $(ai_harness_claim_stems); do
+		_ru_pk=$(ai_harness_ig_file parked)/$_ru_s
+		if [ -f "$_ru_pk" ]; then
+			_ru_out="$_ru_out; $_ru_s parked $(ai_harness_kv_get "$_ru_pk" code)"
+			continue
+		fi
+		_ru_r=$(ai_harness_agent_file "$_ru_s" worker)
+		[ -f "$_ru_r" ] || continue
+		ai_harness_agent_alive "$_ru_r" && continue
+		[ ! -f "$(ai_harness_ig_file submitted)/$_ru_s" ] || continue
+		_ru_out="$_ru_out; $_ru_s worker exited $(ai_harness_kv_get "$_ru_r" exit) without submitting"
+	done
+	[ -n "$_ru_out" ] || return 1
+	printf 'unfinished: %s — aih status\n' "${_ru_out#; }"
 }
 
 # The pending stem whose reviewer was lost, if that is the case. Nothing will

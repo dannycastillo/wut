@@ -4,7 +4,8 @@
 #
 # Stems given are remembered; a bare run reuses the last set, and --all clears
 # it. --detach starts the loop under nohup and prints its pid. --once runs a
-# single tick. Exit: 0 idle, 1 a stop for a human, 3 paused and drained.
+# single tick. Exit: 0 every todo in the set merged or is held with a reason,
+# 1 a stop for a human, 3 paused and drained.
 
 _detach=no
 _once=no
@@ -59,27 +60,33 @@ _set=$(ai_harness_run_set | tr '\n' ' ')
 ai_harness_event @run - started "${_set:-every todo}"
 log "run: working ${_set:-every todo}"
 
+rm -f "$(ai_harness_run_file failed)".*
+_halt() {
+	log "run: $1"
+	ai_harness_event @run - stopped "$1"
+	_rc=$EX_FAIL
+}
+
 _rc=$EX_OK
 while :; do
 	ai_harness_agents_reap
 	ai_harness_run_timeouts
-	ai_harness_run_dispatch
-	if _stop=$(ai_harness_run_judge); then :; else
-		log "run: $_stop"
-		ai_harness_event @run - stopped "$_stop"
-		_rc=$EX_FAIL
+	if _stop=$(ai_harness_run_dispatch); then :; else
+		_halt "$_stop"
 		break
 	fi
-	[ "$_once" = no ] || break
+	if _stop=$(ai_harness_run_judge); then :; else
+		_halt "$_stop"
+		break
+	fi
 	if _lost=$(ai_harness_run_lost); then
-		_stop="reviewer-lost $_lost: aih dispatch reviewer --detach, or integrate --continue --park"
-		log "run: $_stop"
-		ai_harness_event @run - stopped "$_stop"
-		_rc=$EX_FAIL
+		_halt "reviewer-lost $_lost: aih dispatch reviewer --detach, or integrate --continue --park"
 		break
 	fi
 	if ai_harness_run_idle; then
-		if [ -f "$(ai_harness_state_dir)/PAUSED" ]; then
+		if _stop=$(ai_harness_run_unfinished); then
+			_halt "$_stop"
+		elif [ -f "$(ai_harness_state_dir)/PAUSED" ]; then
 			ai_harness_event @run - stopped "paused and drained"
 			_rc=$EX_PAUSED
 		else
@@ -87,6 +94,7 @@ while :; do
 		fi
 		break
 	fi
+	[ "$_once" = no ] || break
 	sleep "${AI_HARNESS_RUN_POLL:-10}"
 done
 ai_harness_run_report "$_since" >&2
