@@ -21,11 +21,11 @@ when to stop.
    Any failure there parks and exits 1 with one line, `park <item> <code>:
    <detail>`. Otherwise it prints a judgment packet and exits 10.
 
-2. Read the packet. Every Done-when box is marked:
-   - **from diff** — a static property of the tree. Read it off the patch.
-   - **needs running** — behaviour. Reproduce it: build, run, or compare
-     against trunk. A box read off a diff when it needed running is not
-     verified.
+2. Read the packet. It lists every Done-when box as written; deciding which
+   kind each one is, is yours:
+   - a static property of the tree — read it off the patch.
+   - behaviour — reproduce it: build, run, or compare against trunk. A box
+     read off a diff when it needed running is not verified.
 
 3. Continue with exactly one of:
 
