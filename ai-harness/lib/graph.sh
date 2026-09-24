@@ -75,17 +75,25 @@ ai_harness_plan() {
 	done
 	for _f in todo/*.md; do
 		[ -f "$_f" ] || continue
-		printf '%s %s\n' "$(ai_harness_todo_field "$_f" Priority)" "$(basename -- "$_f" .md)"
-	done | sed 's/^high/1 &/; s/^medium/2 &/; s/^low/3 &/' | sort -k1,1n -k3,3 | {
+		case $(ai_harness_todo_field "$_f" Priority) in
+		high) _pr=1 ;; medium) _pr=2 ;; low) _pr=3 ;; *) _pr=4 ;;
+		esac
+		printf '%s %s\n' "$_pr" "$(basename -- "$_f" .md)"
+	done | sort -k1,1n -k2,2 | {
 		_runs=
-		while read -r _ _pr _s; do
+		while read -r _pr _s; do
 			[ -f "$(ai_harness_claim_file "$_s")" ] && continue
 			_f=$(ai_harness_todo_file "$_s")
-			_why=
+			case $_pr in 1) _pr=high ;; 2) _pr=medium ;; 3) _pr=low ;; esac
+			# 2>&1 before >/dev/null: the reasons are on stderr, and that is what
+			# the pipe must carry.
+			_why=$(ai_harness_todo_validate "$_s" 2>&1 >/dev/null | sed -n "1s/^aih: //; 1s|^$_f: ||p")
 			_bl=$(ai_harness_open_blockers "$_f")
 			_tc=$(ai_harness_touches_norm "$(ai_harness_todo_field "$_f" Touches)")
 			_br=$(ai_harness_todo_branch_from_stem "$_s") || _br=
-			if [ -n "$_bl" ]; then
+			if [ -n "$_why" ]; then
+				_why="invalid: $_why"
+			elif [ -n "$_bl" ]; then
 				_why="blocked by $_bl"
 			elif git show-ref --verify --quiet "refs/heads/$_br"; then
 				_why="branch $_br exists unclaimed — git branch -d it to offer this again"
