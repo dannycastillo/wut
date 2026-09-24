@@ -9,8 +9,9 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  check:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
@@ -21,21 +22,12 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go build ./...
+      - if: ${{ !cancelled() }}
+        run: go vet ./...
+      - if: ${{ !cancelled() }}
+        run: go test -race ./...
 
-  vet:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: go vet ./...
-
-  fmt:
+  style:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -43,34 +35,14 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: |
+      - name: gofmt
+        run: |
           out=$(gofmt -l .)
           if [ -n "$out" ]; then
             printf '%s\n' "$out"
             exit 1
           fi
-
-  test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: go test -race ./...
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          cache: true
-      - uses: golangci/golangci-lint-action@v9
+      - if: ${{ !cancelled() }}
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.13.2
