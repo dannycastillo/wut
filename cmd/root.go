@@ -18,6 +18,14 @@ import (
 // ANSI 2, not a hex value: the theme's own green reads on any background.
 var copiedMark = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("✔")
 
+// run's three calls that reach outside this package, swapped in tests so
+// run is exercised without a terminal or the real clipboard.
+var (
+	searchFind     = search.Find
+	uiPick         = ui.Pick
+	clipboardWrite = clipboard.WriteAll
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "wut",
 	Short: "Search for command line snippets",
@@ -63,7 +71,7 @@ func Execute() {
 }
 
 func run(query search.Query) error {
-	results, warnings, err := search.Find(query)
+	results, warnings, err := searchFind(query)
 	if err != nil {
 		return err
 	}
@@ -84,7 +92,7 @@ func run(query search.Query) error {
 		choices[i] = ui.Choice{Title: r.Cmd, Desc: r.Desc}
 	}
 
-	idx, err := ui.Pick(choices)
+	idx, err := uiPick(choices)
 	if err != nil {
 		if errors.Is(err, ui.ErrAborted) {
 			return nil // nothing selected; exit 0
@@ -94,7 +102,7 @@ func run(query search.Query) error {
 
 	selected := results[idx]
 
-	err = clipboard.WriteAll(selected.Cmd)
+	err = clipboardWrite(selected.Cmd)
 
 	if err != nil {
 		return fmt.Errorf("clipboard writeall: %w", err)

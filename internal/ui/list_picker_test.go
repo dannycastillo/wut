@@ -454,7 +454,7 @@ func TestResizeLeavesNothingBehind(t *testing.T) {
 	session := fmt.Sprintf("wut-resize-test-%d", os.Getpid())
 	tmux := func(args ...string) string {
 		out, err := exec.Command("tmux", args...).Output()
-		if err != nil && args[0] != "kill-session" {
+		if err != nil {
 			t.Fatalf("tmux %s: %v", strings.Join(args, " "), err)
 		}
 		return string(out)
