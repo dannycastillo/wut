@@ -3,9 +3,10 @@
 #   aih run [<todo-stem>...] [--all] [--detach] [--once]
 #
 # Stems given are remembered; a bare run reuses the last set, and --all clears
-# it. --detach starts the loop under nohup and prints its pid. --once runs a
-# single tick. Exit: 0 every todo in the set merged or is held with a reason,
-# 1 a stop for a human, 3 paused and drained.
+# it. aih plan <stem>... previews the same set. --detach starts the loop under
+# nohup and prints its pid. --once runs a single tick. Exit: 0 every todo in
+# the set merged or is held with a reason, 1 a stop for a human, 3 paused and
+# drained.
 
 _detach=no
 _once=no

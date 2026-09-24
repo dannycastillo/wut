@@ -62,8 +62,15 @@ ai_harness_touches_meet() {
 
 # Per active claim: claimed, stem, agent, branch. Then per unclaimed todo, by
 # priority: run|hold, stem, priority|reason. Tab-separated.
+#
+# Stems given are the set: a todo outside it is left out of the walk, so it
+# neither runs nor holds anything on Touches. A claim holds whatever the set,
+# and so does Blocked by: the first is a reservation, the second a dependency.
 ai_harness_plan() {
 	_tab=$(printf '\t')
+	_pset=
+	for _ps in "$@"; do _pset="$_pset$_ps
+"; done
 	_barrier=$(cat "$(ai_harness_state_dir)/BARRIER" 2>/dev/null) || _barrier=
 	_active='' _nact=0
 	for _s in $(ai_harness_claim_stems); do
@@ -83,6 +90,7 @@ ai_harness_plan() {
 		_runs=
 		while read -r _pr _s; do
 			[ -f "$(ai_harness_claim_file "$_s")" ] && continue
+			[ -z "$_pset" ] || printf '%s' "$_pset" | grep -qxF -- "$_s" || continue
 			_f=$(ai_harness_todo_file "$_s")
 			case $_pr in 1) _pr=high ;; 2) _pr=medium ;; 3) _pr=low ;; esac
 			# 2>&1 before >/dev/null: the reasons are on stderr, and that is what
