@@ -102,15 +102,27 @@ func buildMatch(chunk string, score int) Result {
 		Score: score,
 	}
 
-	lines := strings.Split(chunk, "\n")
+	// scanFile's split leaves a trailing "\n" on every chunk but the file's
+	// last: the delimiter eats the blank line that separates snippets, but
+	// not the newline before it. Trimmed first so that newline never lands
+	// in cmdLines as a spurious empty final line.
+	lines := strings.Split(strings.TrimRight(chunk, "\n"), "\n")
 
+	var descLines, cmdLines []string
 	for _, line := range lines {
 		if strings.HasPrefix(line, "#") {
-			result.Desc += line
+			descLines = append(descLines, line)
 		} else {
-			result.Cmd += line
+			cmdLines = append(cmdLines, line)
 		}
 	}
+
+	// Cmd keeps real newlines: a heredoc or a multi-line for loop is only
+	// still valid shell if the lines stay separated the way they were
+	// written. Desc joins with a space instead: it renders as one row in
+	// the picker, and a description is prose, not something that runs.
+	result.Desc = strings.Join(descLines, " ")
+	result.Cmd = strings.Join(cmdLines, "\n")
 
 	return result
 }
