@@ -47,6 +47,9 @@ du -sh * | sort -rh | head -n 10
 Your own snippets rank above the shipped ones, so they show up
 first.
 
+A command can span more than one line; it is copied to the clipboard with
+its line breaks intact.
+
 Then you can call the wut command followed by a search phrase to
 recall what the commands are. For example the following query:
 
