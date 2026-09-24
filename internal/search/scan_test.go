@@ -5,10 +5,7 @@ import (
 	"testing/fstest"
 )
 
-// Ranking is only as good as the flag it sorts on, and scanFile is the single
-// place that knows which file a match came from. Standing both origins up with
-// fstest.MapFS is the payoff of scanFile reading through fs.FS rather than
-// os.Open: the seed set and ~/.wut are the same kind of thing to it.
+// scanFile is the only place that knows which file a match came from.
 func TestScanFileStampsOrigin(t *testing.T) {
 	fsys := fstest.MapFS{
 		"notes.txt": &fstest.MapFile{Data: []byte("# view containers\ndocker ps\n")},

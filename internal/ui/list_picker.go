@@ -1,3 +1,5 @@
+// Package ui is the picker: it draws the ranked results inline and returns the
+// index of the row the user chose.
 package ui
 
 import (
@@ -109,13 +111,9 @@ func Pick(choices []Choice) (int, error) {
 		return -1, ErrAborted
 	}
 
-	// Bubble Tea leaves its final frame in the scrollback, so walk back to the
-	// first row it painted and erase from there down.
-	//
-	// The leading \r is not cosmetic: a row padded to the full list width can
-	// leave the cursor in the pending-wrap state — still on row N, but the next
-	// glyph lands on N+1. Terminals disagree on whether CPL then counts from N
-	// or N+1, which cost one row in Terminal.app.
+	// Bubble Tea leaves its final frame in the scrollback: walk back to its first
+	// row and erase down. The \r matters: a full-width row leaves the cursor
+	// pending-wrap, and terminals disagree whether CPL then counts from N or N+1.
 	if n := lipgloss.Height(fm.frame()) - 1; n > 0 {
 		fmt.Fprintf(os.Stderr, "\r\x1b[%dF\x1b[0J", n)
 	}
@@ -155,13 +153,10 @@ func onResize(f func()) (stop func()) {
 	}
 }
 
-// Styles do not vary: the theme parameter that once made them per-model went
-// with ADR-04.
 var (
 	rowStyle = lipgloss.NewStyle().PaddingLeft(rowPad)
 
-	// Reverse borrows the terminal's own palette, so the hovered row stays
-	// legible in a theme this package cannot see. Width is set per-resize.
+	// Reverse borrows the terminal's own palette, so the hovered row is legible in any theme.
 	hoveredStyle = lipgloss.NewStyle().PaddingLeft(rowPad).Reverse(true)
 
 	// Written out rather than taken from list.DefaultStyles: helpRows counts the
@@ -252,11 +247,9 @@ func (m *model) resize() {
 		titleWidth: titleWidth,
 	})
 
-	// JoinVertical pads every section to the widest one, so a single over-wide
-	// line makes every row that wide and the terminal wraps all of them. bubbles
-	// sizes the help to the list width, unaware of the padding HelpStyle adds,
-	// and keeps a binding when even its ellipsis will not fit — so MaxWidth is
-	// the backstop, since lipgloss truncates the rendered line last of all.
+	// JoinVertical pads every section to the widest, so one over-wide line wraps
+	// every row. bubbles sizes the help unaware of HelpStyle's padding and keeps
+	// a binding even when its ellipsis will not fit; MaxWidth is the backstop.
 	m.list.Help.SetWidth(max(m.width-pad, 0))
 	m.list.Styles.HelpStyle = helpStyle.MaxWidth(m.width)
 	m.list.Styles.PaginationStyle = paginationStyle.MaxWidth(m.width)
@@ -279,14 +272,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil // Bubble Tea re-sends the current size in some situations
 		}
 
-		// Any real change closes the picker. It draws relative to its own first
-		// row and erases only downward, so once the terminal moves rows it has
-		// already emitted — by scrolling or re-wrapping them — they are beyond
-		// anything it can erase, and repainting adds a second copy underneath.
-		//
-		// No resize() here: Pick's erase counts back from the frame, so it has
-		// to keep matching what is on screen. choice stays -1, so this reaches
-		// the caller as ErrAborted like any other close.
+		// Rows the terminal has scrolled or re-wrapped are beyond the erase, and
+		// a repaint adds a second copy. No resize(): Pick counts back from frame().
 		return m, tea.Quit
 
 	case tea.KeyPressMsg:
