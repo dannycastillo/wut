@@ -20,10 +20,17 @@ ai_harness_claim_stems() {
 	done
 }
 
+# Claims holding a worker slot: those with no worker record, or a worker still
+# alive. A worker that exited holds its paths — plan reads the claim, not this
+# — but runs nothing, so it does not count against AI_HARNESS_MAX_WORKERS.
+# Reaps first: an exit is only in the record once reaped, and claim never
+# reaps on its own.
 ai_harness_claim_count() {
+	ai_harness_agents_reap
 	_n=0
-	for _c in "$(ai_harness_claims_dir)"/*; do
-		[ -f "$_c" ] || continue
+	for _c in $(ai_harness_claim_stems); do
+		_r=$(ai_harness_agent_file "$_c" worker)
+		[ ! -f "$_r" ] || ai_harness_agent_alive "$_r" || continue
 		_n=$((_n + 1))
 	done
 	printf '%s\n' "$_n"
