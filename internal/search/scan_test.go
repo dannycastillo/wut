@@ -89,66 +89,101 @@ func TestScanFileRewritesPathErrorLabel(t *testing.T) {
 	}
 }
 
-// A chunk containing the whole query as a substring is a direct match: 1000,
-// unconditionally.
-func TestScanChunkDirectMatchScores1000(t *testing.T) {
-	query := Query{Joined: "docker ps", Split: []string{"docker", "ps"}}
+// Every query word present as a whole word, in order, is the strongest
+// match a chunk can be: exact hits in the description, the full-match bonus
+// and the phrase bonus all stack.
+func TestScanChunkPhraseInDescScoresHighest(t *testing.T) {
+	terms := []string{"running", "containers"}
 	chunk := "# list running containers\ndocker ps"
 
-	got, ok := scanChunk(query, chunk)
+	got, ok := scanChunk(terms, chunk)
 	if !ok {
 		t.Fatal("scanChunk: ok = false, want true")
 	}
-	if got.Score != 1000 {
-		t.Errorf("scanChunk: Score = %d, want 1000", got.Score)
+	if want := 2*descExact + 2*fullBonus + descPhrase; got.Score != want {
+		t.Errorf("scanChunk: Score = %d, want %d", got.Score, want)
 	}
 }
 
-// Short of a direct match, each query word present anywhere in the chunk adds
-// 5 to a 500 base.
-func TestScanChunkWordMatchScores500Plus5PerWord(t *testing.T) {
-	query := Query{
-		Joined: "view container missing",
-		Split:  []string{"view", "container", "missing"},
-	}
-	chunk := "# view every container\ndocker ps -a" // "view" and "container" match, "missing" doesn't
+// A query word found only inside another word is not a hit: "tar" must not
+// pull in "start". Only a shared stem of three or more letters counts, and
+// then for less than an exact word.
+func TestScanChunkWordBoundaries(t *testing.T) {
+	terms := []string{"tar"}
 
-	got, ok := scanChunk(query, chunk)
+	if _, ok := scanChunk(terms, "# start a service\nbrew services start NAME"); ok {
+		t.Error("scanChunk: matched \"tar\" inside \"start\"")
+	}
+
+	got, ok := scanChunk(terms, "# archive a directory\ntar -czf NAME.tar.gz DIR")
+	if !ok {
+		t.Fatal("scanChunk: ok = false, want true for an exact command word")
+	}
+	if want := cmdExact + fullBonus + cmdPhrase; got.Score != want {
+		t.Errorf("scanChunk: Score = %d, want %d", got.Score, want)
+	}
+
+	got, ok = scanChunk([]string{"large"}, "# find files larger than 100 mb\nfind DIR -size +100M")
+	if !ok {
+		t.Fatal("scanChunk: ok = false, want true for a shared stem")
+	}
+	if want := descPrefix + fullBonus; got.Score != want {
+		t.Errorf("scanChunk: Score = %d, want %d", got.Score, want)
+	}
+}
+
+// Punctuation and case are not part of a word: "containers," matches
+// "containers", and a description written in capitals still matches a
+// lowercased query.
+func TestScanChunkIgnoresCaseAndPunctuation(t *testing.T) {
+	terms := []string{"ssh", "prod"}
+	chunk := "# SSH into Prod, carefully\nssh me@prod"
+
+	got, ok := scanChunk(terms, chunk)
 	if !ok {
 		t.Fatal("scanChunk: ok = false, want true")
 	}
-	if want := 500 + 2*5; got.Score != want {
-		t.Errorf("scanChunk: Score = %d, want %d (2 of 3 query words matched)", got.Score, want)
+	if want := 2*descExact + 2*fullBonus; got.Score != want {
+		t.Errorf("scanChunk: Score = %d, want %d", got.Score, want)
+	}
+}
+
+// Any one word matching is enough to be a result, but a chunk hitting every
+// word outranks one hitting more words of a longer query.
+func TestScorePartialMatchNeverBeatsFullMatch(t *testing.T) {
+	terms := []string{"size", "of", "directory"}
+
+	full := score(terms, tokenize("# check size of a directory"), tokenize("du -sh DIR"))
+	partial := score(terms, tokenize("# create a gzipped archive of a directory"), tokenize("tar -czf NAME.tar.gz DIR"))
+	ofOnly := score(terms, tokenize("# print the second column of a csv"), tokenize("awk -F, '{print $2}' FILE"))
+
+	if full <= partial || partial <= ofOnly || ofOnly <= 0 {
+		t.Errorf("score: full %d, partial %d, one word %d; want strictly descending and all > 0", full, partial, ofOnly)
 	}
 }
 
 func TestScanChunkNoMatchReturnsFalse(t *testing.T) {
-	query := Query{Joined: "kubectl get pods", Split: []string{"kubectl", "get", "pods"}}
+	terms := []string{"kubectl", "get", "pods"}
 	chunk := "# totally unrelated\necho hi"
 
-	if _, ok := scanChunk(query, chunk); ok {
+	if _, ok := scanChunk(terms, chunk); ok {
 		t.Error("scanChunk: ok = true, want false when nothing matches")
 	}
 }
 
-func TestCountMatches(t *testing.T) {
-	tests := []struct {
-		name       string
-		chunkWords []string
-		queryWords []string
-		want       int
-	}{
-		{"no overlap", []string{"a", "b"}, []string{"c", "d"}, 0},
-		{"every query word present", []string{"a", "b", "c"}, []string{"a", "b"}, 2},
-		{"repeated query word counts each occurrence", []string{"a"}, []string{"a", "a"}, 2},
-		{"repeated chunk word counts once per query word", []string{"a", "a", "a"}, []string{"a"}, 1},
+// A word typed twice searches once, and a hyphenated query splits like a
+// hyphenated snippet does.
+func TestQueryTerms(t *testing.T) {
+	got := queryTerms(NewQuery([]string{"Docker-PS", "docker"}))
+
+	want := []string{"docker", "ps"}
+	if len(got) != len(want) {
+		t.Fatalf("queryTerms = %v, want %v", got, want)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := countMatches(tt.chunkWords, tt.queryWords); got != tt.want {
-				t.Errorf("countMatches(%v, %v) = %d, want %d", tt.chunkWords, tt.queryWords, got, tt.want)
-			}
-		})
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("queryTerms = %v, want %v", got, want)
+		}
 	}
 }
 
@@ -158,15 +193,12 @@ func TestCountMatches(t *testing.T) {
 func TestBuildMatchJoinsCmdWithNewlineDescWithSpace(t *testing.T) {
 	chunk := "# first line\n# second line\ndocker ps\ndocker stop $(docker ps -q)"
 
-	got := buildMatch(chunk, 777)
+	got := buildMatch(chunk)
 
 	if want := "# first line # second line"; got.Desc != want {
 		t.Errorf("buildMatch: Desc = %q, want %q", got.Desc, want)
 	}
 	if want := "docker ps\ndocker stop $(docker ps -q)"; got.Cmd != want {
 		t.Errorf("buildMatch: Cmd = %q, want %q", got.Cmd, want)
-	}
-	if got.Score != 777 {
-		t.Errorf("buildMatch: Score = %d, want 777", got.Score)
 	}
 }

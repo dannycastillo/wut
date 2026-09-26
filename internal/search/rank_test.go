@@ -31,6 +31,23 @@ func TestUserSnippetsOutrankSeed(t *testing.T) {
 	}
 }
 
+// Within one origin and score, the snippet with fewer words is the more
+// specific one and comes first.
+func TestShorterSnippetBreaksTie(t *testing.T) {
+	long := res("find DIR -type f -size +100M -exec ls -lh {} +", 27, false)
+	long.length = 20
+	short := res("find DIR -type f -size +100M", 27, false)
+	short.length = 12
+
+	results := []Result{long, short}
+
+	rank(results)
+
+	if got, want := results[0].Cmd, short.Cmd; got != want {
+		t.Errorf("first = %q, want %q", got, want)
+	}
+}
+
 // Within one origin, highest score first.
 func TestHigherScoreWins(t *testing.T) {
 	results := []Result{

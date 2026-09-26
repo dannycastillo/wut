@@ -14,6 +14,7 @@ type Result struct {
 	Cmd      string
 	Score    int
 	FromUser bool
+	length   int // tokens in Desc and Cmd; a shorter snippet is a more specific one
 }
 
 type Query struct {
