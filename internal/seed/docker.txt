@@ -4,6 +4,12 @@ docker run -it --rm IMAGE bash
 # run a container in the background with a port published (local:container)
 docker run -d --name NAME -p PORT:PORT IMAGE
 
+# list running containers
+docker ps
+
+# list all containers including stopped ones
+docker ps -a
+
 # open a shell in a running container
 docker exec -it CONTAINER bash
 
