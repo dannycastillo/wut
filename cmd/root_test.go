@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dannycastillo/wut-command/internal/search"
-	"github.com/dannycastillo/wut-command/internal/ui"
+	"github.com/dannycastillo/wut/internal/search"
+	"github.com/dannycastillo/wut/internal/ui"
 )
 
 // stubSeams saves run's three package-level seams and restores them after the

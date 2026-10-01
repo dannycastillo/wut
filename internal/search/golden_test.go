@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dannycastillo/wut-command/internal/seed"
+	"github.com/dannycastillo/wut/internal/seed"
 )
 
 // The shipped snippets are the fixture: for each query, the first row the
