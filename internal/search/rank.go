@@ -3,7 +3,8 @@ package search
 import "sort"
 
 // rank orders the picker: the user's own snippets first, then by score, then
-// by text. Origin is a sort key, not a score bonus, so it cannot be outscored.
+// shortest first, then by text. Origin is a sort key, not a score bonus, so
+// it cannot be outscored.
 func rank(results []Result) {
 	sort.Slice(results, func(i, j int) bool {
 		a, b := results[i], results[j]
@@ -13,6 +14,8 @@ func rank(results []Result) {
 			return a.FromUser // your snippets outrank the shipped set outright
 		case a.Score != b.Score:
 			return a.Score > b.Score
+		case a.length != b.length:
+			return a.length < b.length
 		case a.Cmd != b.Cmd:
 			return a.Cmd < b.Cmd
 		default:

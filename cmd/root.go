@@ -91,7 +91,7 @@ func run(query search.Query) error {
 
 	// No results is a normal outcome, not a failure: report it and exit 0.
 	if len(results) == 0 {
-		fmt.Fprintf(os.Stderr, "No Results Found For: %s\n", query.Joined)
+		fmt.Fprintf(os.Stderr, "No Results Found For: %s\n", query.Phrase)
 		return nil
 	}
 

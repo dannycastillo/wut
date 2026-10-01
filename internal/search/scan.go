@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func scanFile(src snippetSource, query Query, ch chan<- Result) error {
+func scanFile(src snippetSource, terms []string, ch chan<- Result) error {
 
 	file, err := src.fsys.Open(src.path)
 
@@ -49,7 +49,7 @@ func scanFile(src snippetSource, query Query, ch chan<- Result) error {
 
 	for scanner.Scan() {
 
-		match, ok := scanChunk(query, scanner.Text())
+		match, ok := scanChunk(terms, scanner.Text())
 		if !ok {
 			continue
 		}
@@ -65,42 +65,19 @@ func scanFile(src snippetSource, query Query, ch chan<- Result) error {
 	return nil
 }
 
-func scanChunk(query Query, chunk string) (Result, bool) {
-	if strings.Contains(chunk, query.Joined) {
-		score := 1000
-		return buildMatch(chunk, score), true
-	}
+func scanChunk(terms []string, chunk string) (Result, bool) {
+	result := buildMatch(chunk)
 
-	wordMatches := countMatches(strings.Fields(chunk), query.Split)
+	descTokens, cmdTokens := tokenize(result.Desc), tokenize(result.Cmd)
 
-	if wordMatches > 0 {
-		score := 500 + (wordMatches * 5)
-		return buildMatch(chunk, score), true
-	}
+	result.Score, result.full = score(terms, descTokens, cmdTokens)
+	result.length = len(descTokens) + len(cmdTokens)
 
-	return Result{}, false
+	return result, result.Score > 0
 }
 
-func countMatches(chunkWords, queryWords []string) int {
-	seen := make(map[string]bool)
-	for _, item := range chunkWords {
-		seen[item] = true
-	}
-
-	matchCount := 0
-	for _, item := range queryWords {
-		if seen[item] {
-			matchCount++
-		}
-	}
-
-	return matchCount
-}
-
-func buildMatch(chunk string, score int) Result {
-	result := Result{
-		Score: score,
-	}
+func buildMatch(chunk string) Result {
+	var result Result
 
 	// scanFile's split leaves a trailing "\n" on every chunk but the file's
 	// last: the delimiter eats the blank line that separates snippets, but
