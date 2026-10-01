@@ -90,17 +90,17 @@ trailers.
 
 Never push a branch, merge, or force-push anything without being asked.
 
-<!-- ai-harness:begin cksum=3071968440 -->
 ## Working in parallel
 
 Several agents work this backlog at once, one todo each, in separate
-worktrees, and trunk is written only by `aih integrate`. The mechanics and
-the verbs are in `ai-harness/README.md`; each role's sequence is in
-`ai-harness/roles/`. `aih run` works a set of todos unattended.
+worktrees, and trunk is written only by `aih integrate`. The harness is the
+Homebrew-installed `aih`, not part of this repo: `aih protocol` is the shared
+rules, `aih role worker|reviewer` is each role's sequence, and
+`aih <verb> --help` documents each verb. `aih run` works a set of todos
+unattended.
 
 `Touches` in a todo is a reservation on paths, and it is the only thing that
 decides what runs side by side.
-<!-- ai-harness:end -->
 
 ## Architecture decisions
 
