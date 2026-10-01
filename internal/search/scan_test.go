@@ -3,6 +3,7 @@ package search
 import (
 	"errors"
 	"io/fs"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -174,18 +175,22 @@ func TestScanChunkNoMatchReturnsFalse(t *testing.T) {
 	}
 }
 
-// A word typed twice searches once, and a hyphenated query splits like a
-// hyphenated snippet does.
+// A word typed twice searches once, a hyphenated query splits like a
+// hyphenated snippet does, and the words that carry no meaning are dropped
+// unless they are all there is.
 func TestQueryTerms(t *testing.T) {
-	got := queryTerms(NewQuery([]string{"Docker-PS", "docker"}))
-
-	want := []string{"docker", "ps"}
-	if len(got) != len(want) {
-		t.Fatalf("queryTerms = %v, want %v", got, want)
+	tests := []struct {
+		args []string
+		want []string
+	}{
+		{[]string{"Docker-PS", "docker"}, []string{"docker", "ps"}},
+		{[]string{"show", "the", "size", "of", "a", "directory"}, []string{"show", "size", "directory"}},
+		{[]string{"the", "a"}, []string{"the", "a"}},
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("queryTerms = %v, want %v", got, want)
+	for _, tt := range tests {
+		got := queryTerms(NewQuery(tt.args))
+		if strings.Join(got, " ") != strings.Join(tt.want, " ") {
+			t.Errorf("queryTerms(%v) = %v, want %v", tt.args, got, tt.want)
 		}
 	}
 }

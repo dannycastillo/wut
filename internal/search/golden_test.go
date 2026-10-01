@@ -22,6 +22,7 @@ func TestSeedQueriesRankExpectedFirst(t *testing.T) {
 	}{
 		{"directory size", "du -sh DIR"},
 		{"size of directory", "du -sh DIR"},
+		{"the size of a directory", "du -sh DIR"},
 		{"find large files", "find DIR -type f -size +100M"},
 		{"running containers", "docker exec -it CONTAINER bash"},
 		{"delete branch", "git branch -D BRANCH"},
