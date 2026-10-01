@@ -10,7 +10,7 @@ import (
 	"unicode"
 )
 
-func scanFile(src snippetSource, query Query, ch chan<- Result) error {
+func scanFile(src snippetSource, terms []string, ch chan<- Result) error {
 
 	file, err := src.fsys.Open(src.path)
 
@@ -48,8 +48,6 @@ func scanFile(src snippetSource, query Query, ch chan<- Result) error {
 		return 0, nil, nil
 	})
 
-	terms := queryTerms(query)
-
 	for scanner.Scan() {
 
 		match, ok := scanChunk(terms, scanner.Text())
@@ -66,38 +64,6 @@ func scanFile(src snippetSource, query Query, ch chan<- Result) error {
 	}
 
 	return nil
-}
-
-// stopWords are the words a query can carry without meaning them. Every
-// term has to match for a snippet to count as a full hit, so "show the size
-// of a directory" would otherwise fall through to the partial list over
-// "the" and "a". They are the most frequent words in the seed descriptions.
-var stopWords = map[string]bool{
-	"a": true, "an": true, "the": true, "and": true, "or": true,
-	"of": true, "to": true, "in": true, "on": true, "for": true, "with": true,
-	"my": true, "me": true, "i": true, "how": true, "do": true, "is": true, "it": true,
-}
-
-// queryTerms is the query as distinct tokens, so "docker-ps" and "docker ps"
-// search alike and a word typed twice does not count twice. Stop words are
-// dropped unless the query is nothing but stop words.
-func queryTerms(query Query) []string {
-	var terms, kept []string
-	seen := make(map[string]bool)
-	for _, t := range tokenize(query.Joined) {
-		if seen[t] {
-			continue
-		}
-		seen[t] = true
-		terms = append(terms, t)
-		if !stopWords[t] {
-			kept = append(kept, t)
-		}
-	}
-	if len(kept) == 0 {
-		return terms
-	}
-	return kept
 }
 
 // tokenize lowercases and splits on anything that is not a letter or digit,

@@ -3,7 +3,6 @@ package search
 import (
 	"errors"
 	"io/fs"
-	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -14,13 +13,13 @@ func TestScanFileStampsOrigin(t *testing.T) {
 		"notes.txt": &fstest.MapFile{Data: []byte("# view containers\ndocker ps\n")},
 	}
 
-	query := Query{Joined: "docker ps", Split: []string{"docker", "ps"}}
+	terms := []string{"docker", "ps"}
 
 	for _, user := range []bool{true, false} {
 		ch := make(chan Result, 4) // buffered: scanFile sends before anyone drains
 
 		src := snippetSource{fsys: fsys, path: "notes.txt", label: "notes.txt", user: user}
-		if err := scanFile(src, query, ch); err != nil {
+		if err := scanFile(src, terms, ch); err != nil {
 			t.Fatalf("user=%v: scanFile: %v", user, err)
 		}
 		close(ch)
@@ -49,11 +48,11 @@ func TestScanFileJoinsMultiLineCommandWithNewline(t *testing.T) {
 		)},
 	}
 
-	query := Query{Joined: "loop over text files", Split: []string{"loop", "over", "text", "files"}}
+	terms := []string{"loop", "over", "text", "files"}
 
 	ch := make(chan Result, 4)
 	src := snippetSource{fsys: fsys, path: "notes.txt", label: "notes.txt"}
-	if err := scanFile(src, query, ch); err != nil {
+	if err := scanFile(src, terms, ch); err != nil {
 		t.Fatalf("scanFile: %v", err)
 	}
 	close(ch)
@@ -79,7 +78,7 @@ func TestScanFileRewritesPathErrorLabel(t *testing.T) {
 
 	src := snippetSource{fsys: fsys, path: "missing.txt", label: "seed/missing.txt"}
 
-	err := scanFile(src, Query{}, make(chan Result))
+	err := scanFile(src, nil, make(chan Result))
 
 	var pathErr *fs.PathError
 	if !errors.As(err, &pathErr) {
@@ -172,26 +171,6 @@ func TestScanChunkNoMatchReturnsFalse(t *testing.T) {
 
 	if _, ok := scanChunk(terms, chunk); ok {
 		t.Error("scanChunk: ok = true, want false when nothing matches")
-	}
-}
-
-// A word typed twice searches once, a hyphenated query splits like a
-// hyphenated snippet does, and the words that carry no meaning are dropped
-// unless they are all there is.
-func TestQueryTerms(t *testing.T) {
-	tests := []struct {
-		args []string
-		want []string
-	}{
-		{[]string{"Docker-PS", "docker"}, []string{"docker", "ps"}},
-		{[]string{"show", "the", "size", "of", "a", "directory"}, []string{"show", "size", "directory"}},
-		{[]string{"the", "a"}, []string{"the", "a"}},
-	}
-	for _, tt := range tests {
-		got := queryTerms(NewQuery(tt.args))
-		if strings.Join(got, " ") != strings.Join(tt.want, " ") {
-			t.Errorf("queryTerms(%v) = %v, want %v", tt.args, got, tt.want)
-		}
 	}
 }
 

@@ -92,7 +92,7 @@ func TestRunEmptyResultsExitsZero(t *testing.T) {
 	}
 
 	var err error
-	out := withStderr(t, func() { err = run(search.Query{Joined: "docker"}) })
+	out := withStderr(t, func() { err = run(search.Query{Phrase: "docker"}) })
 
 	if err != nil {
 		t.Fatalf("run() err = %v, want nil", err)

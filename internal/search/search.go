@@ -19,20 +19,46 @@ type Result struct {
 }
 
 type Query struct {
-	Joined string
-	Split  []string
+	Phrase string   // the words as typed, for messages
+	Terms  []string // what is matched: distinct, lowercased, stop words dropped
 }
 
-// NewQuery normalises raw command line arguments into a query.
+// NewQuery turns the command line arguments into a query.
 func NewQuery(args []string) Query {
-	for i := range args {
-		args[i] = strings.ToLower(args[i])
-	}
+	phrase := strings.Join(args, " ")
+	return Query{Phrase: phrase, Terms: queryTerms(phrase)}
+}
 
-	return Query{
-		Joined: strings.Join(args, " "),
-		Split:  args,
+// stopWords are the words a query can carry without meaning them. Every
+// term has to match for a snippet to count as a full hit, so "show the size
+// of a directory" would otherwise fall through to the partial list over
+// "the" and "a". They are the most frequent words in the seed descriptions.
+var stopWords = map[string]bool{
+	"a": true, "an": true, "the": true, "and": true, "or": true,
+	"of": true, "to": true, "in": true, "on": true, "for": true, "with": true,
+	"my": true, "me": true, "i": true, "how": true, "do": true, "is": true, "it": true,
+}
+
+// queryTerms is the query as distinct tokens, so "docker-ps" and "docker ps"
+// search alike and a word typed twice does not count twice. Stop words are
+// dropped unless the query is nothing but stop words.
+func queryTerms(phrase string) []string {
+	var terms, kept []string
+	seen := make(map[string]bool)
+	for _, t := range tokenize(phrase) {
+		if seen[t] {
+			continue
+		}
+		seen[t] = true
+		terms = append(terms, t)
+		if !stopWords[t] {
+			kept = append(kept, t)
+		}
 	}
+	if len(kept) == 0 {
+		return terms
+	}
+	return kept
 }
 
 // Find returns every match for query, ranked best first. Files it could not
@@ -59,7 +85,7 @@ func findIn(files []snippetSource, query Query) (results []Result, warnings []er
 	for _, v := range files {
 		go func() {
 			defer wg.Done()
-			if err := scanFile(v, query, resultsChan); err != nil {
+			if err := scanFile(v, query.Terms, resultsChan); err != nil {
 				errsChan <- err
 			}
 		}()
