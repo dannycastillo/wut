@@ -7,13 +7,18 @@ the clipboard.
 
 ## Install
 
-Needs Go 1.26 or newer.
-
 ### Homebrew
 
-Coming once `chore/homebrew-release` lands.
+```sh
+brew install dannycastillo/tap/wut
+```
+
+This installs a prebuilt binary for macOS or Linux, on arm64 or amd64. It
+needs no Go toolchain.
 
 ### go install
+
+Needs Go 1.26 or newer.
 
 ```sh
 go install github.com/dannycastillo/wut@latest
@@ -25,6 +30,8 @@ This puts `wut` on `$GOBIN` (or `$GOPATH/bin` if `$GOBIN` isn't set) — make
 sure that's on your `$PATH`.
 
 ### Build from source
+
+Needs Go 1.26 or newer.
 
 ```sh
 git clone https://github.com/dannycastillo/wut.git

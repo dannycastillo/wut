@@ -70,8 +70,10 @@ in shell environments.`,
 	},
 }
 
-// Execute runs the root command and exits 1 if it fails.
-func Execute() {
+// Execute runs the root command and exits 1 if it fails. version is what
+// --version prints.
+func Execute(version string) {
+	rootCmd.Version = version
 	err := rootCmd.Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
