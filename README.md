@@ -16,12 +16,14 @@ Coming once `chore/homebrew-release` lands.
 ### go install
 
 ```sh
-git clone https://github.com/dannycastillo/wut-command.git
-cd wut-command
-go install .
+go install github.com/dannycastillo/wut-command@latest
 ```
 
-This puts `wut` on `$GOBIN` (or `$GOPATH/bin` if `$GOBIN` isn't set) — make
+Needs a published tag; `v0.1.0` doesn't exist yet. The binary is named
+`wut-command`, after the last element of the module path. Clone and run
+`go install .` to get one named `wut`.
+
+This puts the binary on `$GOBIN` (or `$GOPATH/bin` if `$GOBIN` isn't set) — make
 sure that's on your `$PATH`.
 
 ### Build from source

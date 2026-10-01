@@ -1,4 +1,4 @@
-module wut
+module github.com/dannycastillo/wut-command
 
 go 1.26.5
 

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"wut/internal/seed"
+	"github.com/dannycastillo/wut-command/internal/seed"
 )
 
 // snippetSource is one file of snippets, seed or user's, behind the same fs.FS.

@@ -5,9 +5,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/dannycastillo/wut-command/internal/search"
+	"github.com/dannycastillo/wut-command/internal/ui"
 	"os"
-	"wut/internal/search"
-	"wut/internal/ui"
 
 	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"

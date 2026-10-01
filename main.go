@@ -2,7 +2,7 @@
 // pick to the clipboard.
 package main
 
-import "wut/cmd"
+import "github.com/dannycastillo/wut-command/cmd"
 
 func main() {
 	cmd.Execute()
