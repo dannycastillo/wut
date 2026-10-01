@@ -95,7 +95,7 @@ func scanChunk(terms []string, chunk string) (Result, bool) {
 
 	descTokens, cmdTokens := tokenize(result.Desc), tokenize(result.Cmd)
 
-	result.Score = score(terms, descTokens, cmdTokens)
+	result.Score, result.full = score(terms, descTokens, cmdTokens)
 	result.length = len(descTokens) + len(cmdTokens)
 
 	return result, result.Score > 0
@@ -111,11 +111,11 @@ const (
 	cmdPhrase  = 4
 )
 
-// score is 0 when no term matches. Every term matched must beat any partial
-// match however many words the partial hits, hence fullBonus scales with
-// the query rather than being a constant.
-func score(terms, descTokens, cmdTokens []string) int {
-	total, matched := 0, 0
+// score is 0 when no term matches, and full when every term does. Every
+// term matched must beat any partial match however many words the partial
+// hits, hence fullBonus scales with the query rather than being a constant.
+func score(terms, descTokens, cmdTokens []string) (total int, full bool) {
+	matched := 0
 
 	for _, t := range terms {
 		best := max(termScore(t, descTokens, descExact, descPrefix),
@@ -127,21 +127,23 @@ func score(terms, descTokens, cmdTokens []string) int {
 	}
 
 	if matched == 0 {
-		return 0
+		return 0, false
 	}
 
-	if matched == len(terms) {
-		total += fullBonus * len(terms)
-
-		switch {
-		case containsSeq(descTokens, terms):
-			total += descPhrase
-		case containsSeq(cmdTokens, terms):
-			total += cmdPhrase
-		}
+	if matched < len(terms) {
+		return total, false
 	}
 
-	return total
+	total += fullBonus * len(terms)
+
+	switch {
+	case containsSeq(descTokens, terms):
+		total += descPhrase
+	case containsSeq(cmdTokens, terms):
+		total += cmdPhrase
+	}
+
+	return total, true
 }
 
 func termScore(term string, tokens []string, exact, prefix int) int {

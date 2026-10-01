@@ -14,7 +14,8 @@ type Result struct {
 	Cmd      string
 	Score    int
 	FromUser bool
-	length   int // tokens in Desc and Cmd; a shorter snippet is a more specific one
+	length   int  // tokens in Desc and Cmd; a shorter snippet is a more specific one
+	full     bool // every query term matched
 }
 
 type Query struct {
@@ -84,7 +85,25 @@ func findIn(files []snippetSource, query Query) (results []Result, warnings []er
 		return nil, nil, errors.Join(scanErrs...) // nothing worked: fail
 	}
 
+	finalResults = prune(finalResults)
 	rank(finalResults)
 
 	return finalResults, scanErrs, nil // some worked: degrade
+}
+
+// prune keeps only the snippets matching every query term. Partial matches
+// are the fallback, not the long tail: "git log" means the log snippets, not
+// every snippet with "git" in it, but a misspelt word should still find
+// something rather than nothing.
+func prune(results []Result) []Result {
+	var full []Result
+	for _, r := range results {
+		if r.full {
+			full = append(full, r)
+		}
+	}
+	if len(full) == 0 {
+		return results
+	}
+	return full
 }

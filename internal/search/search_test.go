@@ -47,3 +47,31 @@ func TestFindInReturnsErrorWhenEverySourceFails(t *testing.T) {
 		t.Errorf("findIn: warnings = %v, want nil", warnings)
 	}
 }
+
+// A snippet matching every query word hides the ones matching only some:
+// "git log" means the log snippets, not every git snippet. With no full
+// match the partial ones stand in, so a misspelt word still finds something.
+func TestFindInPrunesPartialMatchesWhenAnyFullMatch(t *testing.T) {
+	fsys := fstest.MapFS{
+		"git.txt": &fstest.MapFile{Data: []byte(
+			"# show the git log\ngit log --oneline\n\n# git status\ngit status\n\n# git diff\ngit diff\n",
+		)},
+	}
+	files := []snippetSource{{fsys: fsys, path: "git.txt", label: "git.txt"}}
+
+	results, _, err := findIn(files, NewQuery([]string{"git", "log"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Cmd != "git log --oneline" {
+		t.Errorf("findIn: results = %v, want only the full match", order(results))
+	}
+
+	results, _, err = findIn(files, NewQuery([]string{"git", "lgo"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 3 {
+		t.Errorf("findIn: %d results, want all 3 partial matches when nothing matches fully", len(results))
+	}
+}

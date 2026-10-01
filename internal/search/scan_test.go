@@ -148,17 +148,20 @@ func TestScanChunkIgnoresCaseAndPunctuation(t *testing.T) {
 	}
 }
 
-// Any one word matching is enough to be a result, but a chunk hitting every
-// word outranks one hitting more words of a longer query.
+// Any one word matching is enough to score, but a chunk hitting every word
+// outranks one hitting more words of a longer query, and only it is full.
 func TestScorePartialMatchNeverBeatsFullMatch(t *testing.T) {
 	terms := []string{"size", "of", "directory"}
 
-	full := score(terms, tokenize("# check size of a directory"), tokenize("du -sh DIR"))
-	partial := score(terms, tokenize("# create a gzipped archive of a directory"), tokenize("tar -czf NAME.tar.gz DIR"))
-	ofOnly := score(terms, tokenize("# print the second column of a csv"), tokenize("awk -F, '{print $2}' FILE"))
+	full, isFull := score(terms, tokenize("# check size of a directory"), tokenize("du -sh DIR"))
+	partial, partialFull := score(terms, tokenize("# create a gzipped archive of a directory"), tokenize("tar -czf NAME.tar.gz DIR"))
+	ofOnly, ofOnlyFull := score(terms, tokenize("# print the second column of a csv"), tokenize("awk -F, '{print $2}' FILE"))
 
 	if full <= partial || partial <= ofOnly || ofOnly <= 0 {
 		t.Errorf("score: full %d, partial %d, one word %d; want strictly descending and all > 0", full, partial, ofOnly)
+	}
+	if !isFull || partialFull || ofOnlyFull {
+		t.Errorf("score: full = %v, %v, %v; want only the chunk with every word", isFull, partialFull, ofOnlyFull)
 	}
 }
 

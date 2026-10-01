@@ -41,6 +41,15 @@ func TestSeedQueriesRankExpectedFirst(t *testing.T) {
 			if got := results[0].Cmd; got != tt.first {
 				t.Errorf("first = %q, want %q", got, tt.first)
 			}
+			// A full match at the top means the list is full matches only:
+			// "git log" must not trail every snippet with "git" in it.
+			if results[0].full {
+				for _, r := range results[1:] {
+					if !r.full {
+						t.Errorf("partial match %q listed under a full match: %v", r.Cmd, order(results))
+					}
+				}
+			}
 		})
 	}
 }
