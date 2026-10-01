@@ -1,34 +1,41 @@
 # wut
 
-[![CI](https://github.com/dannycastillo/wut-command/actions/workflows/ci.yml/badge.svg)](https://github.com/dannycastillo/wut-command/actions/workflows/ci.yml)
+[![CI](https://github.com/dannycastillo/wut/actions/workflows/ci.yml/badge.svg)](https://github.com/dannycastillo/wut/actions/workflows/ci.yml)
 
 Search your own command-line notes from the terminal and copy the result to
 the clipboard.
 
 ## Install
 
-Needs Go 1.26 or newer.
-
 ### Homebrew
 
-Coming once `chore/homebrew-release` lands.
+```sh
+brew install dannycastillo/tap/wut
+```
+
+This installs a prebuilt binary for macOS or Linux, on arm64 or amd64. It
+needs no Go toolchain.
 
 ### go install
 
+Needs Go 1.26 or newer.
+
 ```sh
-git clone https://github.com/dannycastillo/wut-command.git
-cd wut-command
-go install .
+go install github.com/dannycastillo/wut@latest
 ```
+
+Needs a published tag; `v0.1.0` doesn't exist yet.
 
 This puts `wut` on `$GOBIN` (or `$GOPATH/bin` if `$GOBIN` isn't set) — make
 sure that's on your `$PATH`.
 
 ### Build from source
 
+Needs Go 1.26 or newer.
+
 ```sh
-git clone https://github.com/dannycastillo/wut-command.git
-cd wut-command
+git clone https://github.com/dannycastillo/wut.git
+cd wut
 go build -o wut .
 ```
 

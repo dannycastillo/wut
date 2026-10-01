@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"wut/internal/seed"
+	"github.com/dannycastillo/wut/internal/seed"
 )
 
 // The shipped snippets are the fixture: for each query, the first row the
@@ -24,7 +24,8 @@ func TestSeedQueriesRankExpectedFirst(t *testing.T) {
 		{"size of directory", "du -sh DIR"},
 		{"the size of a directory", "du -sh DIR"},
 		{"find large files", "find DIR -type f -size +100M"},
-		{"running containers", "docker exec -it CONTAINER bash"},
+		{"running containers", "docker ps"},
+		{"list containers", "docker ps"},
 		{"delete branch", "git branch -D BRANCH"},
 		{"kill port", "kill -9 $(lsof -t -i :PORT)"},
 		{"git log", "git log --oneline --graph --decorate"},
