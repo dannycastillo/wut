@@ -20,7 +20,7 @@ A release is a tag, a workflow run, and one formula bump in
 
    ```sh
    brew audit --strict --new dannycastillo/tap/wut   # drop --new after the first release
-   brew install --build-from-source dannycastillo/tap/wut
+   brew install dannycastillo/tap/wut
    brew test wut
    ```
 
