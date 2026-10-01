@@ -2,7 +2,7 @@
 
 - **Priority:** medium
 - **Branch:** chore/fix-go-mod-module-path
-- **Touches:** go.mod, go.sum
+- **Touches:** go.mod, go.sum, main.go, cmd/*.go, internal/search/sources.go, internal/search/golden_test.go, README.md
 - **Blocked by:** —
 
 ## Goal
@@ -29,19 +29,31 @@ support; that workaround should stop being necessary once this lands.
 
 ## Notes
 - Rename the module directive to `github.com/dannycastillo/wut-command` and
-  update the one internal import (`wut/cmd` in `main.go`, plus any `wut/...`
-  imports under `internal/` and `cmd/`) to match.
-- Verify with the actual failing case: from outside this repo,
-  `go install github.com/dannycastillo/wut-command@<a real commit or tag>`
-  should succeed once pushed.
-- `README.md`'s "go install" section should go back to a plain
-  `go install github.com/dannycastillo/wut-command@latest` once this is
-  fixed and a tag exists — update it there too.
+  update every `wut/...` import to match. Today that is `main.go`,
+  `cmd/root.go`, `cmd/root_test.go`, `internal/search/sources.go` and
+  `internal/search/golden_test.go`; `grep -rn '"wut/' --include='*.go' .`
+  is the list.
+- `go.mod` and `go.sum` are in `AI_HARNESS_PROTECTED`, so `aih integrate`
+  parks this branch and the maintainer merges it by hand. Expected.
+- `chore-homebrew-release` also touches `main.go`, `cmd/root.go` and
+  `README.md`; the overlapping `Touches` serializes the two. Whichever runs
+  second rebases onto the first.
+- The repo is private and has no tags, so the remote `go install` check
+  cannot run from this branch. Verify locally instead:
+  `cd "$(mktemp -d)" && GOFLAGS=-mod=mod go install <repo-path>@<branch-commit>`
+  fails before the rename and passes after it only once the repo is public;
+  until then, `go build ./...` with the new path and a clean `go vet` is the
+  proof. The maintainer runs the remote form after going public.
+- `README.md`'s "go install" section goes back to the one-line
+  `go install github.com/dannycastillo/wut-command@latest`. Say "needs a
+  published tag" next to it until `v0.1.0` exists.
 
 ## Done when
 - [ ] `go.mod` declares `module github.com/dannycastillo/wut-command`
 - [ ] All internal imports updated to match
-- [ ] `go install github.com/dannycastillo/wut-command@<commit>` succeeds
-      from outside the repo
 - [ ] `README.md`'s go install section is updated to the one-line remote form
 - [ ] `go build ./...` and `go vet ./...` pass
+
+Maintainer, once the repo is public:
+- [ ] `go install github.com/dannycastillo/wut-command@main` succeeds from
+      outside the repo

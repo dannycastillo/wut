@@ -2,7 +2,7 @@
 
 - **Priority:** low
 - **Branch:** feat/seed-docker-ps
-- **Touches:** internal/seed/docker.txt
+- **Touches:** internal/seed/docker.txt, internal/search/golden_test.go
 - **Blocked by:** —
 
 ## Goal
@@ -17,11 +17,17 @@ not there.
 `internal/seed/docker.txt`, same three-line shape as its neighbours. Two
 snippets: `docker ps` described as listing running containers, and
 `docker ps -a` for every container including stopped ones. Descriptions are
-lowercase prose like the rest of the file. `internal/search/golden_test.go`
-pins first results for seed queries; add a row for `list containers` once the
-snippet exists.
+lowercase prose like the rest of the file.
+
+`internal/search/golden_test.go` pins first results for seed queries. It
+already pins `running containers` to `docker exec -it CONTAINER bash`, which
+is the wrong answer this todo exists to fix. Flip that row to `docker ps` and
+add one for `list containers`. Check `wut running containers` by hand too:
+the description must outrank `docker exec`'s "open a shell in a running
+container", which shares two of the words.
 
 ## Done when
 - [ ] `docker ps` and `docker ps -a` are in `internal/seed/docker.txt`
-- [ ] `list containers` has a golden row in `internal/search/golden_test.go`
+- [ ] `running containers` and `list containers` both have golden rows in
+      `internal/search/golden_test.go` whose first result is `docker ps`
 - [ ] `go build ./...` and `go vet ./...` pass
