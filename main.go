@@ -4,6 +4,8 @@ package main
 
 import "github.com/dannycastillo/wut/cmd"
 
+var version = "dev"
+
 func main() {
-	cmd.Execute()
+	cmd.Execute(version)
 }
